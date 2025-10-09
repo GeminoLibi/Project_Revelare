@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Link Analysis - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="link-analysis">
+    <div class="page-header">
+        <h1><i class="fas fa-link"></i> Link Analysis</h1>
+        <p>Search for specific indicators across all projects to find connections</p>
+    </div>
+
+    <div class="search-section">
+        <div class="search-card">
+            <h2><i class="fas fa-search"></i> Search Indicators</h2>
+            <form method="POST" class="search-form">
+                <div class="form-group">
+                    <label for="search_term">Search Term:</label>
+                    <input type="text" id="search_term" name="search_term" 
+                           value="{{ search_term or '' }}" 
+                           placeholder="Enter IP address, email, URL, or any indicator" required>
+                    <div class="help-text">Search for specific indicators like IP addresses, emails, URLs, or other data</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if search_term %}
+    <div class="results-section">
+        <h2><i class="fas fa-list"></i> Search Results for "{{ search_term }}"</h2>
+        
+        {% if results %}
+            <div class="results-card">
+                <div class="results-header">
+                    <h3>Found in {{ results|length }} project(s)</h3>
+                    <div class="search-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>This indicator appears in the following projects:</span>
+                    </div>
+                </div>
+                
+                <div class="project-list">
+                    {% for project in results %}
+                    <div class="project-item">
+                        <div class="project-info">
+                            <i class="fas fa-folder"></i>
+                            <span class="project-name">{{ project }}</span>
+                        </div>
+                        <div class="project-actions">
+                            <a href="{{ url_for('serve_project_files', project_path=project + '/report.html') }}" 
+                               class="btn btn-sm btn-success" target="_blank">
+                                <i class="fas fa-file-alt"></i> View Report
+                            </a>
+                            <a href="{{ url_for('export_legal_data', project_name=project, export_format='json') }}" 
+                               class="btn btn-sm btn-outline">
+                                <i class="fas fa-download"></i> Export
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="no-results">
+                <i class="fas fa-search"></i>
+                <h3>No results found</h3>
+                <p>The search term "{{ search_term }}" was not found in any projects.</p>
+                <div class="search-tips">
+                    <h4>Search Tips:</h4>
+                    <ul>
+                        <li>Try different variations of your search term</li>
+                        <li>Search for partial matches (e.g., "192.168" instead of full IP)</li>
+                        <li>Check if the projects have been fully processed</li>
+                        <li>Try searching for related terms or patterns</li>
+                    </ul>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="help-section">
+        <h2><i class="fas fa-question-circle"></i> How Link Analysis Works</h2>
+        <div class="help-grid">
+            <div class="help-card">
+                <i class="fas fa-database"></i>
+                <h3>Database Search</h3>
+                <p>Searches through all extracted indicators stored in the master database across all projects</p>
+            </div>
+            <div class="help-card">
+                <i class="fas fa-project-diagram"></i>
+                <h3>Cross-Project Analysis</h3>
+                <p>Find connections between different cases and evidence files by searching for common indicators</p>
+            </div>
+            <div class="help-card">
+                <i class="fas fa-bullseye"></i>
+                <h3>Indicator Types</h3>
+                <p>Search for IP addresses, email addresses, URLs, timestamps, file paths, and other extracted data</p>
+            </div>
+            <div class="help-card">
+                <i class="fas fa-chart-line"></i>
+                <h3>Timeline Analysis</h3>
+                <p>Use search results to build timelines and understand relationships between different pieces of evidence</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.querySelector('.search-form');
+    const searchInput = document.getElementById('search_term');
+    
+    // Auto-focus search input
+    searchInput.focus();
+    
+    // Handle form submission with loading state
+    searchForm.addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+        submitBtn.disabled = true;
+        
+        // Re-enable after a short delay (in case of errors)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+});
+</script>
+{% endblock %}

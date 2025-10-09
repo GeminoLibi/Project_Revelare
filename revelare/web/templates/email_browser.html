@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}Email Browser - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="email-browser">
+    <div class="page-header">
+        <h1><i class="fas fa-envelope"></i> Email Browser</h1>
+        <p>View and analyze email archives in various formats (MBOX, Maildir, EML, PST)</p>
+    </div>
+
+    <!-- Cases with Email Archives -->
+    {% if cases_with_emails %}
+    <div class="cases-section">
+        <div class="cases-card">
+            <h2><i class="fas fa-folder-open"></i> Cases with Email Archives</h2>
+            <div class="cases-grid">
+                {% for case in cases_with_emails %}
+                <div class="case-item">
+                    <div class="case-header">
+                        <h3>{{ case.name }}</h3>
+                        <span class="email-count">{{ case.email_archive_count }} email archive(s)</span>
+                    </div>
+                    <div class="case-details">
+                        <p><strong>Archives Found:</strong></p>
+                        <ul class="archive-list">
+                            {% for archive in case.email_archives[:3] %}
+                            <li>
+                                <span class="archive-name">{{ archive.relative_path }}</span>
+                                <span class="archive-format">{{ archive.format|upper }}</span>
+                                <span class="archive-size">({{ archive.formatted_size }})</span>
+                            </li>
+                            {% endfor %}
+                            {% if case.email_archives|length > 3 %}
+                            <li><em>... and {{ case.email_archives|length - 3 }} more</em></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <div class="case-actions">
+                        <form method="POST" style="display: inline;">
+                            <input type="hidden" name="action" value="analyze">
+                            <input type="hidden" name="case_name" value="{{ case.name }}">
+                            <select name="email_file" class="archive-select" id="archive-select-{{ loop.index }}">
+                                {% for archive in case.email_archives %}
+                                <option value="{{ archive.path }}">{{ archive.relative_path }} ({{ archive.format|upper }})</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-primary btn-sm" onclick="return confirmAnalysis(this.form)">
+                                <i class="fas fa-search"></i> Analyze
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manual Upload Section -->
+    <div class="upload-section">
+        <div class="upload-card">
+            <h2><i class="fas fa-upload"></i> Manual Email Archive Upload</h2>
+            <form method="POST" enctype="multipart/form-data" class="upload-form">
+                <div class="form-group">
+                    <label for="email_file">Email Archive File:</label>
+                    <div class="file-upload-area" id="file-upload-area">
+                        <i class="fas fa-file-archive"></i>
+                        <p>Select an email archive file</p>
+                        <input type="file" id="email_file" name="email_file"
+                               accept=".mbox,.mbx,.eml,.pst" required>
+                        <div class="file-info" id="file-info"></div>
+                    </div>
+                    <div class="help-text">Supported formats: MBOX (.mbox, .mbx), EML (.eml), PST (.pst)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="project_name">Project Name:</label>
+                    <input type="text" id="project_name" name="project_name"
+                           placeholder="Enter project name" required>
+                    <div class="help-text">Name for the analysis project</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="max_emails">Maximum Emails to Process:</label>
+                    <input type="number" id="max_emails" name="max_emails"
+                           value="100" min="1" max="1000">
+                    <div class="help-text">Limit the number of emails processed (1-1000)</div>
+                </div>
+
+                <input type="hidden" name="action" value="analyze">
+                <button type="submit" class="btn btn-primary" onclick="return confirmManualAnalysis(this.form)">
+                    <i class="fas fa-search"></i> Analyze Archive
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="features-section">
+        <h2><i class="fas fa-star"></i> Email Browser Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <i class="fas fa-envelope-open"></i>
+                <h3>Multi-Format Support</h3>
+                <p>Parse and analyze email archives in MBOX, Maildir, EML, and PST formats</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-search"></i>
+                <h3>Content Search</h3>
+                <p>Search through email content, headers, and metadata to find specific information</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-calendar"></i>
+                <h3>Timeline View</h3>
+                <p>View emails in chronological order to understand communication patterns</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-user"></i>
+                <h3>Contact Analysis</h3>
+                <p>Extract and analyze sender/recipient information for contact mapping</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-paperclip"></i>
+                <h3>Attachment Support</h3>
+                <p>View and extract attachments from email messages</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-download"></i>
+                <h3>Export Options</h3>
+                <p>Export email data in various formats for further analysis</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cases Section Styles -->
+    <style>
+    .cases-section {
+        margin-bottom: 2rem;
+    }
+
+    .cases-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .cases-card h2 {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 1.5rem;
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .cases-grid {
+        padding: 1.5rem;
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .case-item {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.25rem;
+        background: var(--gray-50);
+    }
+
+    .case-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .case-header h3 {
+        margin: 0;
+        color: var(--text-dark);
+        font-size: 1.2rem;
+    }
+
+    .email-count {
+        background: var(--primary);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+
+    .case-details p {
+        margin: 0 0 0.5rem 0;
+        font-weight: bold;
+        color: var(--text-dark);
+    }
+
+    .archive-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .archive-list li {
+        padding: 0.25rem 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .archive-list li:last-child {
+        border-bottom: none;
+    }
+
+    .archive-name {
+        font-weight: 500;
+        color: var(--text-dark);
+    }
+
+    .archive-format {
+        background: var(--info);
+        color: white;
+        padding: 0.125rem 0.375rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+
+    .archive-size {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-left: 0.5rem;
+    }
+
+    .case-actions {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .archive-select {
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        margin-right: 0.5rem;
+        min-width: 300px;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .email-browser {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    @media (max-width: 768px) {
+        .case-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .archive-select {
+            min-width: auto;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .case-actions form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+    </style>
+
+    <div class="help-section">
+        <h2><i class="fas fa-question-circle"></i> Supported Email Formats</h2>
+        <div class="help-content">
+            <div class="help-info">
+                <h3>Supported Formats</h3>
+                <ul>
+                    <li><strong>MBOX</strong> (.mbox, .mbx): Standard email archive format used by many email clients</li>
+                    <li><strong>Maildir</strong>: Directory-based format with cur/new/tmp subdirectories</li>
+                    <li><strong>EML</strong> (.eml): Individual email message files</li>
+                    <li><strong>PST</strong> (.pst): Outlook Personal Storage Table (requires additional libraries)</li>
+                </ul>
+            </div>
+            <div class="help-info">
+                <h3>Analysis Features</h3>
+                <ul>
+                    <li>Email headers (From, To, Subject, Date, etc.)</li>
+                    <li>Email body content (plain text and HTML)</li>
+                    <li>Attachments and embedded content</li>
+                    <li>Metadata extraction and statistics</li>
+                    <li>Content search and filtering</li>
+                    <li>Export capabilities</li>
+                </ul>
+            </div>
+            <div class="help-info">
+                <h3>Use Cases</h3>
+                <ul>
+                    <li>Email forensics and investigation</li>
+                    <li>Communication pattern analysis</li>
+                    <li>Contact and relationship mapping</li>
+                    <li>Evidence preservation and review</li>
+                    <li>Compliance and audit requirements</li>
+                    <li>Data breach investigations</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const fileInput = document.getElementById('email_file');
+    const fileInfo = document.getElementById('file-info');
+
+// Function to show processing estimate and confirm analysis
+function confirmAnalysis(form) {
+    const selectedFile = form.email_file.value;
+    if (!selectedFile) {
+        alert('Please select an email archive to analyze.');
+        return false;
+    }
+
+    // Show loading message
+    const button = form.querySelector('button[type="submit"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Estimating...';
+    button.disabled = true;
+
+    // Get file size estimate (simplified - in real implementation, this would call an API)
+    fetch('/api/estimate_processing', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ file_path: selectedFile })
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+
+        let message = `Archive Analysis Estimate:\n\n`;
+        message += `Files: ${data.total_files}\n`;
+        message += `Size: ${data.total_size_mb.toFixed(1)} MB\n`;
+        message += `Estimated Time: ${data.time_string}\n\n`;
+
+        if (data.warning_message) {
+            message += `⚠️ ${data.warning_message}\n\n`;
+        }
+
+        message += `File Types:\n`;
+        for (const [type, count] of Object.entries(data.file_types)) {
+            message += `  ${type}: ${count} files\n`;
+        }
+
+        message += `\nProceed with analysis?`;
+
+        return confirm(message);
+    })
+    .catch(error => {
+        console.error('Error getting estimate:', error);
+        button.innerHTML = originalText;
+        button.disabled = false;
+
+        // Fallback: ask user if they want to proceed without estimate
+        return confirm(`Unable to estimate processing time. Proceed with analysis of ${selectedFile}?`);
+    });
+
+    return false; // Prevent form submission until user confirms
+}
+
+// Function for manual upload analysis confirmation
+function confirmManualAnalysis(form) {
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select a file to analyze.');
+        return false;
+    }
+
+    const file = fileInput.files[0];
+
+    // Show loading message
+    const button = form.querySelector('button[type="submit"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Estimating...';
+    button.disabled = true;
+
+    // Create FormData to simulate file upload for estimation
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Get file size estimate
+    fetch('/api/estimate_processing', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ file_path: file.name, file_size: file.size })
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+
+        let message = `File Analysis Estimate:\n\n`;
+        message += `File: ${file.name}\n`;
+        message += `Size: ${(file.size / (1024 * 1024)).toFixed(1)} MB\n`;
+
+        if (data.estimated_seconds) {
+            message += `Estimated Time: ${data.time_string}\n\n`;
+        }
+
+        if (data.warning_message) {
+            message += `⚠️ ${data.warning_message}\n\n`;
+        }
+
+        message += `Proceed with analysis?`;
+
+        return confirm(message);
+    })
+    .catch(error => {
+        console.error('Error getting estimate:', error);
+        button.innerHTML = originalText;
+        button.disabled = false;
+
+        // Fallback: ask user if they want to proceed without estimate
+        return confirm(`Unable to estimate processing time. Proceed with analysis of ${file.name}?`);
+    });
+
+    return false; // Prevent form submission until user confirms
+}
+
+    // Handle drag and drop
+    fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        fileInput.files = e.dataTransfer.files;
+        updateFileInfo();
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', updateFileInfo);
+
+    // Update file info display
+    function updateFileInfo() {
+        const file = fileInput.files[0];
+        if (file) {
+            fileInfo.innerHTML = `
+                <div class="file-details">
+                    <i class="fas fa-file-archive"></i>
+                    <div class="file-details-content">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            fileInfo.innerHTML = '';
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
+{% endblock %}

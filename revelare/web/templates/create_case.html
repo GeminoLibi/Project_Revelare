@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Case - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="create-case">
+    <div class="page-header">
+        <h1><i class="fas fa-folder-plus"></i> Create New Case</h1>
+        <p>Start a new investigation with proper case management and metadata</p>
+    </div>
+
+    <div class="case-creation-section">
+        <div class="case-form-card">
+            <h2><i class="fas fa-clipboard-list"></i> Case Information</h2>
+            <form method="POST" class="case-form">
+                <!-- Case Details -->
+                <div class="form-section">
+                    <h3>Case Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="case_number">Case Number: *</label>
+                            <input type="text" id="case_number" name="case_number" required
+                                   placeholder="e.g., 2025-001, HOMICIDE-045">
+                            <div class="help-text">Unique identifier for this case</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="incident_type">Incident Type: *</label>
+                            <select id="incident_type" name="incident_type" required>
+                                <option value="">Select incident type...</option>
+                                {% for incident in incident_types %}
+                                <option value="{{ incident }}">{{ incident }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">Primary classification of the incident</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Investigator Information -->
+                <div class="form-section">
+                    <h3>Investigator Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="investigator_name">Investigator Name: *</label>
+                            <input type="text" id="investigator_name" name="investigator_name" required
+                                   placeholder="John Doe">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="investigator_id">Badge/ID Number:</label>
+                            <input type="text" id="investigator_id" name="investigator_id"
+                                   placeholder="12345">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="investigator_email">Email Address:</label>
+                            <input type="email" id="investigator_email" name="investigator_email"
+                                   placeholder="john.doe@agency.gov">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agency Information -->
+                <div class="form-section">
+                    <h3>Agency Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="agency">Agency: *</label>
+                            <select id="agency" name="agency" required>
+                                <option value="">Select agency...</option>
+                                {% for agency in agencies %}
+                                <option value="{{ agency }}">{{ agency }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="jurisdiction">Jurisdiction:</label>
+                            <input type="text" id="jurisdiction" name="jurisdiction"
+                                   placeholder="City of Springfield, State of IL">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Classification -->
+                <div class="form-section">
+                    <h3>Security Classification</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="classification">Classification Level:</label>
+                            <select id="classification" name="classification">
+                                {% for classification in classifications %}
+                                <option value="{{ classification }}">{{ classification }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">Default: Unclassified</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-large">
+                        <i class="fas fa-plus-circle"></i> Create Case
+                    </button>
+                    <a href="{{ url_for('home') }}" class="btn btn-outline">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <div class="info-card">
+            <h3><i class="fas fa-info-circle"></i> What happens next?</h3>
+            <ol>
+                <li><strong>Case Creation:</strong> A structured case directory will be created with proper metadata</li>
+                <li><strong>Evidence Upload:</strong> You'll be redirected to upload evidence files</li>
+                <li><strong>Automatic Processing:</strong> Files will be analyzed and a report generated</li>
+                <li><strong>Report Generation:</strong> Comprehensive analysis report with findings</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<style>
+.create-case {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.case-form-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 2rem;
+}
+
+.case-form {
+    margin-top: 1rem;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.form-section h3 {
+    color: var(--primary);
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+.help-text {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+.info-section {
+    margin-top: 2rem;
+}
+
+.info-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 2rem;
+    border-left: 4px solid var(--primary);
+}
+
+.info-card h3 {
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.info-card ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.info-card li {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.info-card strong {
+    color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    .case-form-card {
+        padding: 1rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn-large {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

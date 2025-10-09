@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Project Revelare{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1000, 9999) | random }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-search"></i>
+                <span>Project Revelare</span>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ url_for('splash') }}" class="nav-link">
+                    <i class="fas fa-star"></i> Intro
+                </a>
+                <a href="{{ url_for('home') }}" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="{{ url_for('link_analysis') }}" class="nav-link">
+                    <i class="fas fa-link"></i> Link Analysis
+                </a>
+                <a href="{{ url_for('string_search') }}" class="nav-link">
+                    <i class="fas fa-search"></i> String Search
+                </a>
+                <a href="{{ url_for('email_browser') }}" class="nav-link">
+                    <i class="fas fa-envelope"></i> Email Browser
+                </a>
+                <a href="{{ url_for('fractal_encryption') }}" class="nav-link">
+                    <i class="fas fa-snowflake"></i> Fractal Encryption
+                </a>
+                <div class="style-toggle" style="display: flex !important; visibility: visible !important;">
+                    <button onclick="setTheme('cyber-blue')" class="theme-btn active" data-theme="cyber-blue" style="display: flex !important;">
+                        <i class="fas fa-palette"></i> Cyber
+                    </button>
+                    <button onclick="setTheme('shadow-tech')" class="theme-btn" data-theme="shadow-tech" style="display: flex !important;">
+                        <i class="fas fa-moon"></i> Shadow
+                    </button>
+                    <button onclick="setTheme('neon-reveal')" class="theme-btn" data-theme="neon-reveal" style="display: flex !important;">
+                        <i class="fas fa-bolt"></i> Neon
+                    </button>
+                </div>
+                <button onclick="exitApp()" class="nav-link exit-btn" style="margin-left: 1rem;">
+                    <i class="fas fa-power-off"></i> Exit
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">
+                            <i class="fas fa-{% if category == 'error' %}exclamation-triangle{% elif category == 'success' %}check-circle{% else %}info-circle{% endif %}"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2025 Project Revelare - Digital Forensics and Data Extraction Tool</p>
+            <p>Version 2.1 | Built with Flask & Python</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1000, 9999) | random }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

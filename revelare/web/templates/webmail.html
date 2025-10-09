@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webmail - Project Revelare</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .webmail-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+            margin-top: 20px;
+        }
+
+        .email-sidebar {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .email-compose-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .email-compose-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .email-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .email-item {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .email-item:hover {
+            background-color: #f9fafb;
+        }
+
+        .email-item.unread {
+            background-color: #eff6ff;
+            border-left: 3px solid #2563eb;
+        }
+
+        .email-subject {
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .email-sender {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 2px;
+        }
+
+        .email-date {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .email-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .email-view {
+            display: none;
+        }
+
+        .email-view.active {
+            display: block;
+        }
+
+        .email-header {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .email-header h2 {
+            margin: 0 0 10px 0;
+            color: #111827;
+        }
+
+        .email-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .email-body {
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #374151;
+        }
+
+        .compose-form {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .compose-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .webmail-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .email-sidebar {
+                order: 2;
+            }
+
+            .email-content {
+                order: 1;
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-envelope"></i> Webmail - Project Revelare</h1>
+            <nav>
+                <a href="{{ url_for('home') }}" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </nav>
+        </div>
+
+        <div class="webmail-container">
+            <!-- Sidebar -->
+            <div class="email-sidebar">
+                <button class="email-compose-btn" onclick="showComposeForm()">
+                    <i class="fas fa-plus"></i> Compose Email
+                </button>
+
+                <h3>Inbox</h3>
+                <ul class="email-list" id="email-list">
+                    <li class="loading">Loading emails...</li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="email-content">
+                <!-- Email View -->
+                <div class="email-view" id="email-view">
+                    <div class="email-header">
+                        <h2 id="email-subject">Select an email to read</h2>
+                        <div class="email-meta">
+                            <span id="email-sender">No email selected</span>
+                            <span id="email-date"></span>
+                        </div>
+                    </div>
+                    <div class="email-body" id="email-body">
+                        Click on an email from the sidebar to view its contents.
+                    </div>
+                </div>
+
+                <!-- Compose Form -->
+                <div class="compose-form" id="compose-form">
+                    <h2>Compose Email</h2>
+                    <form id="email-form">
+                        <div class="form-group">
+                            <label for="to">To:</label>
+                            <input type="email" id="to" name="to" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="subject">Subject:</label>
+                            <input type="text" id="subject" name="subject" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="body">Message:</label>
+                            <textarea id="body" name="body" required></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Send Email</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideComposeForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentView = 'inbox'; // 'inbox' or 'compose'
+
+        // Load emails on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEmails();
+        });
+
+        // Load email list
+        function loadEmails() {
+            const emailList = document.getElementById('email-list');
+            emailList.innerHTML = '<li class="loading">Loading emails...</li>';
+
+            fetch('/api/emails')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        emailList.innerHTML = `<li class="error">${data.error}</li>`;
+                        return;
+                    }
+
+                    if (data.emails && data.emails.length > 0) {
+                        emailList.innerHTML = data.emails.map(email => `
+                            <li class="email-item ${email.unread ? 'unread' : ''}" onclick="loadEmail('${email.id}')">
+                                <div class="email-subject">${escapeHtml(email.subject)}</div>
+                                <div class="email-sender">${escapeHtml(email.sender)}</div>
+                                <div class="email-date">${formatDate(email.date)}</div>
+                            </li>
+                        `).join('');
+                    } else {
+                        emailList.innerHTML = '<li>No emails found</li>';
+                    }
+                })
+                .catch(error => {
+                    emailList.innerHTML = '<li class="error">Failed to load emails</li>';
+                    console.error('Error loading emails:', error);
+                });
+        }
+
+        // Load specific email
+        function loadEmail(emailId) {
+            const emailView = document.getElementById('email-view');
+            const emailSubject = document.getElementById('email-subject');
+            const emailSender = document.getElementById('email-sender');
+            const emailDate = document.getElementById('email-date');
+            const emailBody = document.getElementById('email-body');
+
+            emailView.style.display = 'block';
+            emailBody.innerHTML = '<div class="loading">Loading email...</div>';
+
+            fetch(`/api/email/${emailId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        emailBody.innerHTML = `<div class="error">${data.error}</div>`;
+                        return;
+                    }
+
+                    emailSubject.textContent = data.subject;
+                    emailSender.textContent = `From: ${data.sender}`;
+                    emailDate.textContent = formatDate(data.date);
+                    emailBody.innerHTML = `<pre>${escapeHtml(data.body)}</pre>`;
+
+                    // Mark as read in UI
+                    const emailItem = document.querySelector(`[onclick="loadEmail('${emailId}')"]`);
+                    if (emailItem) {
+                        emailItem.classList.remove('unread');
+                    }
+                })
+                .catch(error => {
+                    emailBody.innerHTML = '<div class="error">Failed to load email</div>';
+                    console.error('Error loading email:', error);
+                });
+
+            // Switch to inbox view
+            currentView = 'inbox';
+            document.getElementById('compose-form').classList.remove('active');
+            emailView.classList.add('active');
+        }
+
+        // Show compose form
+        function showComposeForm() {
+            document.getElementById('compose-form').classList.add('active');
+            document.getElementById('email-view').classList.remove('active');
+            currentView = 'compose';
+
+            // Clear form
+            document.getElementById('email-form').reset();
+        }
+
+        // Hide compose form
+        function hideComposeForm() {
+            document.getElementById('compose-form').classList.remove('active');
+            document.getElementById('email-view').classList.add('active');
+            currentView = 'inbox';
+        }
+
+        // Send email
+        document.getElementById('email-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const emailData = {
+                to: formData.get('to'),
+                subject: formData.get('subject'),
+                body: formData.get('body')
+            };
+
+            // Show loading
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+
+            fetch('/api/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('success', 'Email sent successfully!');
+                    hideComposeForm();
+                } else {
+                    showNotification('error', data.error || 'Failed to send email');
+                }
+            })
+            .catch(error => {
+                showNotification('error', 'Failed to send email');
+                console.error('Error sending email:', error);
+            })
+            .finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        function showNotification(type, message) {
+            // Remove existing notifications
+            const existing = document.querySelectorAll('.notification');
+            existing.forEach(n => n.remove());
+
+            // Create notification
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+
+            // Style notification
+            Object.assign(notification.style, {
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                background: type === 'success' ? '#10b981' : '#ef4444',
+                color: 'white',
+                padding: '12px 20px',
+                borderRadius: '6px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                zIndex: '1000',
+                fontSize: '14px'
+            });
+
+            document.body.appendChild(notification);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

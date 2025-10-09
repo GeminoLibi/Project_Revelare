@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Evidence - {{ case_name }}{% endblock %}
+
+{% block content %}
+<div class="upload-evidence">
+    <div class="page-header">
+        <h1><i class="fas fa-upload"></i> Upload Evidence</h1>
+        <p>Add evidence files to case: <strong>{{ case_name }}</strong></p>
+    </div>
+
+    <div class="upload-section">
+        <div class="upload-card">
+            <h2><i class="fas fa-file-upload"></i> Evidence Files</h2>
+            <form method="POST" enctype="multipart/form-data" class="evidence-form" action="{{ url_for('upload_evidence', case_name=case_name) }}">
+                <div class="form-group">
+                    <label for="files">Select Evidence Files:</label>
+                    <div class="file-upload-area" id="file-upload-area">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag and drop files here or click to browse</p>
+                        <p class="file-types">Supports: ZIP, RAR, 7Z, PDF, DOCX, XLSX, TXT, JSON, CSV, XML, HTML, MBOX, Images (JPG, PNG, etc.), Audio/Video files</p>
+                        <input type="file" id="files" name="files" multiple required
+                               accept=".zip,.rar,.7z,.pdf,.docx,.xlsx,.txt,.json,.csv,.xml,.html,.mbox,.eml,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp,.mp3,.wav,.flac,.aac,.ogg,.wma,.m4a,.aiff,.mp4,.avi,.mkv,.mov,.wmv">
+                        <div class="file-list" id="file-list"></div>
+                    </div>
+                </div>
+
+                <div class="upload-options">
+                    <div class="option-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="recursive" name="recursive" checked>
+                            <span class="checkmark"></span>
+                            Recursive directory analysis (analyze all files in selected directories)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-large" id="submit-btn">
+                        <i class="fas fa-play"></i> Upload & Process Evidence
+                    </button>
+                    <a href="{{ url_for('case_management', case_name=case_name) }}" class="btn btn-outline">
+                        <i class="fas fa-folder-open"></i> Browse Existing Files
+                    </a>
+                    <a href="{{ url_for('home') }}" class="btn btn-outline">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+
+                <div id="processing-status" class="processing-status" style="display: none;">
+                    <div class="processing-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <div class="processing-text">
+                        <h3>Uploading and Processing Evidence...</h3>
+                        <p id="processing-message">Please wait while we upload and analyze your files. This may take several minutes.</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="instructions-section">
+        <div class="instructions-card">
+            <h3><i class="fas fa-info-circle"></i> Evidence Upload Guidelines</h3>
+            <div class="guidelines">
+                <div class="guideline-item">
+                    <i class="fas fa-archive"></i>
+                    <div>
+                        <strong>Archives:</strong> ZIP, RAR, and 7Z files will be automatically extracted
+                    </div>
+                </div>
+                <div class="guideline-item">
+                    <i class="fas fa-folder"></i>
+                    <div>
+                        <strong>Directories:</strong> If recursive analysis is enabled, entire directory trees will be processed
+                    </div>
+                </div>
+                <div class="guideline-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>
+                        <strong>Security:</strong> All files are validated and processed in a secure environment
+                    </div>
+                </div>
+                <div class="guideline-item">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <strong>Processing:</strong> Large evidence sets may take time. You'll receive real-time updates.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-evidence {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.upload-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 2rem;
+}
+
+.evidence-form {
+    margin-top: 1rem;
+}
+
+.file-upload-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+    position: relative;
+}
+
+.file-upload-area:hover,
+.file-upload-area.dragover {
+    border-color: var(--primary);
+    background: #eff6ff;
+}
+
+.file-upload-area i {
+    font-size: 3rem;
+    color: #94a3b8;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.file-upload-area p {
+    margin: 0.5rem 0;
+    color: #64748b;
+}
+
+.file-types {
+    font-size: 0.875rem !important;
+    color: #94a3b8 !important;
+}
+
+.file-upload-area input[type="file"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-list {
+    margin-top: 1rem;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    border: 1px solid #e2e8f0;
+}
+
+.file-item i {
+    margin-right: 0.75rem;
+    color: var(--primary);
+}
+
+.file-item {
+    position: relative;
+}
+
+.remove-file-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #dc2626;
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.remove-file-btn:hover {
+    opacity: 1;
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.no-files {
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+    padding: 1rem;
+}
+
+.upload-options {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.option-group {
+    margin-bottom: 0.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 0.75rem;
+    width: 18px;
+    height: 18px;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+.processing-status {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: #f0f9ff;
+    border-radius: 12px;
+    border: 1px solid #bae6fd;
+    text-align: center;
+}
+
+.processing-spinner i {
+    font-size: 2rem;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.processing-text h3 {
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.instructions-section {
+    margin-top: 2rem;
+}
+
+.instructions-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.instructions-card h3 {
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+}
+
+.guidelines {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.guideline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.guideline-item i {
+    color: var(--primary);
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+.guideline-item strong {
+    color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    .upload-card {
+        padding: 1rem;
+    }
+
+    .file-upload-area {
+        padding: 2rem 1rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn-large {
+        width: 100%;
+    }
+
+    .guidelines {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const fileInput = document.getElementById('files');
+    const fileList = document.getElementById('file-list');
+
+    // Handle drag and drop
+    fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+
+        // Add dropped files to the input
+        const dt = new DataTransfer();
+        Array.from(e.dataTransfer.files).forEach(file => dt.items.add(file));
+
+        // Set the files on the input
+        fileInput.files = dt.files;
+        updateFileList();
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', function() {
+        updateFileList();
+    });
+
+    // Handle click on upload area
+    fileUploadArea.addEventListener('click', function(e) {
+        // Only trigger if clicking on the area itself, not on the input
+        if (e.target === fileUploadArea || e.target.tagName === 'P' || e.target.tagName === 'I') {
+            fileInput.click();
+        }
+    });
+
+    // Update file list display
+    function updateFileList() {
+        fileList.innerHTML = '';
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            fileList.innerHTML = '<div class="no-files">No files selected</div>';
+            return;
+        }
+
+        Array.from(fileInput.files).forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <i class="fas fa-file"></i>
+                <span>${file.name}</span>
+                <span class="file-size">(${formatFileSize(file.size)})</span>
+                <button type="button" class="remove-file-btn" onclick="removeFile(${index})" title="Remove file">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            fileList.appendChild(fileItem);
+        });
+    }
+
+    // Make removeFile function global so it can be called from onclick
+    window.removeFile = function(index) {
+        // Create new DataTransfer without the removed file
+        const dt = new DataTransfer();
+        Array.from(fileInput.files).forEach((file, i) => {
+            if (i !== index) {
+                dt.items.add(file);
+            }
+        });
+        fileInput.files = dt.files;
+        updateFileList();
+    };
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Handle form submission with progress simulation
+    const uploadForm = document.querySelector('.evidence-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const processingStatus = document.getElementById('processing-status');
+    const processingMessage = document.getElementById('processing-message');
+    const progressFill = document.getElementById('progress-fill');
+
+    uploadForm.addEventListener('submit', function(e) {
+        console.log('Form submission started');
+
+        // Check if files are selected
+        if (!fileInput.files || fileInput.files.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one file to upload.');
+            console.log('No files selected, preventing submission');
+            return;
+        }
+
+        console.log(`Submitting ${fileInput.files.length} files`);
+        Array.from(fileInput.files).forEach((file, i) => {
+            console.log(`File ${i}: ${file.name} (${file.size} bytes)`);
+        });
+
+        submitBtn.style.display = 'none';
+        processingStatus.style.display = 'block';
+
+        // Simulate upload progress
+        let progress = 0;
+        const messages = [
+            'Uploading files...',
+            'Validating file formats...',
+            'Extracting archives...',
+            'Preparing for analysis...',
+            'Processing complete! Redirecting...'
+        ];
+
+        let messageIndex = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 12;
+            if (progress > 100) progress = 100;
+
+            progressFill.style.width = progress + '%';
+
+            if (messageIndex < messages.length && progress > (messageIndex + 1) * 18) {
+                processingMessage.textContent = messages[messageIndex];
+                messageIndex++;
+            }
+
+            if (progress >= 100) {
+                clearInterval(progressInterval);
+            }
+        }, 600);
+    });
+});
+</script>
+{% endblock %}

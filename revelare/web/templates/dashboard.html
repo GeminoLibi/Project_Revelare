@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="page-header">
+        <h1><i class="fas fa-tachometer-alt"></i> Project Dashboard</h1>
+        <p>Upload and manage your digital forensics projects</p>
+    </div>
+
+    <div class="upload-section">
+        <div class="upload-card">
+            <h2><i class="fas fa-plus-circle"></i> Start New Case</h2>
+            <p>Create a new case with proper onboarding and evidence processing</p>
+            <div class="action-buttons">
+                <a href="{{ url_for('create_case') }}" class="btn btn-primary btn-large">
+                    <i class="fas fa-folder-plus"></i> Create New Case
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="projects-section">
+        <h2><i class="fas fa-folder-open"></i> Existing Projects</h2>
+        
+        {% if projects %}
+            <div class="projects-grid">
+                {% for project in projects %}
+                <div class="project-card status-{{ project.status }}">
+                    <div class="project-header">
+                        <h3>{{ project.name }}</h3>
+                        <span class="status-badge status-{{ project.status }}">
+                            {% if project.status == 'processing' %}
+                                <i class="fas fa-spinner fa-spin"></i> Processing
+                            {% elif project.status == 'completed' %}
+                                <i class="fas fa-check-circle"></i> Completed
+                            {% elif project.status == 'error' %}
+                                <i class="fas fa-exclamation-triangle"></i> Error
+                            {% else %}
+                                <i class="fas fa-clock"></i> {{ project.status|title }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="project-stats">
+                        <div class="stat">
+                            <i class="fas fa-bullseye"></i>
+                            <span>{{ project.findings or 0 }} findings</span>
+                        </div>
+                    </div>
+                    
+                    <div class="project-actions">
+                        <a href="{{ url_for('case_management', case_name=project.name) }}"
+                           class="btn btn-sm btn-info">
+                            <i class="fas fa-folder-open"></i> Browse Files
+                        </a>
+
+                        {% if project.report_exists %}
+                            <a href="{{ url_for('serve_project_files', project_path=project.name + '/report.html') }}"
+                               class="btn btn-sm btn-success" target="_blank">
+                                <i class="fas fa-file-alt"></i> View Report
+                            </a>
+                        {% endif %}
+
+                        <a href="{{ url_for('export_legal_data', project_name=project.name, export_format='json') }}"
+                           class="btn btn-sm btn-outline">
+                            <i class="fas fa-download"></i> Export JSON
+                        </a>
+
+                        <a href="{{ url_for('export_legal_data', project_name=project.name, export_format='csv') }}"
+                           class="btn btn-sm btn-outline">
+                            <i class="fas fa-download"></i> Export CSV
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-folder-open"></i>
+                <h3>No projects yet</h3>
+                <p>Upload your first evidence file to get started with analysis</p>
+            </div>
+        {% endif %}
+        
+        <!-- Success message for completed uploads -->
+        {% if request.args.get('success') == 'processing' %}
+        <div class="success-message" style="margin-top: 2rem;">
+            <div class="success-card">
+                <i class="fas fa-spinner fa-spin"></i>
+                <h3>Upload Successful!</h3>
+                <p>Your evidence files are being processed in the background. You'll see updates in real-time as the analysis progresses.</p>
+                <div class="success-actions">
+                    <a href="{{ url_for('link_analysis') }}" class="btn btn-primary">
+                        <i class="fas fa-link"></i> View Analysis
+                    </a>
+                    <a href="{{ url_for('string_search') }}" class="btn btn-outline">
+                        <i class="fas fa-search"></i> Search Patterns
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% elif request.args.get('success') == 'completed' %}
+        <div class="success-message" style="margin-top: 2rem;">
+            <div class="success-card">
+                <i class="fas fa-check-circle"></i>
+                <h3>Processing Complete!</h3>
+                <p>Your evidence files have been processed and analyzed. The project is now available in your projects list.</p>
+                <div class="success-actions">
+                    <a href="{{ url_for('link_analysis') }}" class="btn btn-primary">
+                        <i class="fas fa-link"></i> View Analysis
+                    </a>
+                    <a href="{{ url_for('string_search') }}" class="btn btn-outline">
+                        <i class="fas fa-search"></i> Search Patterns
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="features-section">
+        <h2><i class="fas fa-star"></i> Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <i class="fas fa-search"></i>
+                <h3>Pattern Extraction</h3>
+                <p>Automatically extract IPs, emails, URLs, timestamps, and more from your evidence</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-archive"></i>
+                <h3>Archive Support</h3>
+                <p>Process ZIP, RAR, 7Z files with nested archive extraction</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Rich Reports</h3>
+                <p>Generate detailed HTML reports with visualizations and export options</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-shield-alt"></i>
+                <h3>Security Focused</h3>
+                <p>Built with security validation and path traversal protection</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const fileInput = document.getElementById('files');
+    const fileList = document.getElementById('file-list');
+
+    // Handle drag and drop
+    fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        fileInput.files = e.dataTransfer.files;
+        updateFileList();
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', updateFileList);
+
+    // Update file list display
+    function updateFileList() {
+        fileList.innerHTML = '';
+        const files = Array.from(fileInput.files);
+        
+        files.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <i class="fas fa-file"></i>
+                <span>${file.name}</span>
+                <span class="file-size">(${formatFileSize(file.size)})</span>
+            `;
+            fileList.appendChild(fileItem);
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Handle form submission
+    const uploadForm = document.querySelector('.upload-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const processingStatus = document.getElementById('processing-status');
+    const processingMessage = document.getElementById('processing-message');
+    const progressFill = document.getElementById('progress-fill');
+
+    uploadForm.addEventListener('submit', function(e) {
+        // Show processing status
+        submitBtn.style.display = 'none';
+        processingStatus.style.display = 'block';
+
+        // Simulate progress updates during upload
+        let progress = 0;
+        const messages = [
+            'Uploading files...',
+            'Extracting archive contents...',
+            'Analyzing file structures...',
+            'Running pattern extraction...',
+            'Generating analysis report...',
+            'Finalizing results...'
+        ];
+
+        let messageIndex = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 100) progress = 100;
+
+            progressFill.style.width = progress + '%';
+
+            if (messageIndex < messages.length && progress > (messageIndex + 1) * 15) {
+                processingMessage.textContent = messages[messageIndex];
+                messageIndex++;
+            }
+
+            if (progress >= 100) {
+                clearInterval(progressInterval);
+                processingMessage.textContent = 'Processing complete! Redirecting...';
+                setTimeout(() => {
+                    // The form will submit normally and redirect
+                }, 1000);
+            }
+        }, 500);
+    });
+
+    // Real-time project status updates
+    function updateProjectStatuses() {
+        fetch('/api/projects')
+            .then(response => response.json())
+            .then(data => {
+                if (data.projects) {
+                    updateProjectCards(data.projects);
+                }
+            })
+            .catch(error => {
+                console.log('Status update failed:', error);
+            });
+    }
+
+    function updateProjectCards(projects) {
+        projects.forEach(project => {
+            const projectCard = document.querySelector(`[data-project-name="${project.name}"]`);
+            if (!projectCard) {
+                // Project card doesn't exist, refresh the page to show new projects
+                location.reload();
+                return;
+            }
+
+            // Update status badge
+            const statusBadge = projectCard.querySelector('.status-badge');
+            const statusIcon = statusBadge.querySelector('i');
+            const statusText = statusBadge.querySelector('span') || statusBadge;
+
+            // Remove existing status classes
+            statusBadge.className = 'status-badge';
+            statusBadge.classList.add(`status-${project.status}`);
+
+            // Update status content
+            if (project.status === 'processing') {
+                statusIcon.className = 'fas fa-spinner fa-spin';
+                statusText.textContent = ' Processing';
+            } else if (project.status === 'completed') {
+                statusIcon.className = 'fas fa-check-circle';
+                statusText.textContent = ' Completed';
+            } else if (project.status === 'error') {
+                statusIcon.className = 'fas fa-exclamation-triangle';
+                statusText.textContent = ' Error';
+            } else {
+                statusIcon.className = 'fas fa-clock';
+                statusText.textContent = ` ${project.status.charAt(0).toUpperCase() + project.status.slice(1)}`;
+            }
+
+            // Update findings count
+            const findingsStat = projectCard.querySelector('.stat span');
+            if (findingsStat) {
+                findingsStat.textContent = `${project.findings || 0} findings`;
+            }
+
+            // Update project card class
+            projectCard.className = 'project-card';
+            projectCard.classList.add(`status-${project.status}`);
+
+            // Show/hide report button based on completion
+            const reportBtn = projectCard.querySelector('.btn-success');
+            if (reportBtn) {
+                reportBtn.style.display = (project.status === 'completed') ? 'inline-block' : 'none';
+            }
+        });
+    }
+
+    // Add data attributes to project cards for easier updating
+    document.querySelectorAll('.project-card').forEach(card => {
+        const projectName = card.querySelector('h3').textContent.trim();
+        card.setAttribute('data-project-name', projectName);
+    });
+
+    // Poll for status updates every 5 seconds
+    setInterval(updateProjectStatuses, 5000);
+
+    // Initial status update
+    updateProjectStatuses();
+});
+</script>
+{% endblock %}
