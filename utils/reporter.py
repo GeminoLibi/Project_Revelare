@@ -8,10 +8,10 @@ import re
 from typing import Dict, List, Any, Set, Tuple
 from datetime import datetime, timezone
 import logging
-from config import Config
-from logger import get_logger, RevelareLogger
-from security import InputValidator
-from geoip_service import GeoIPService
+from revelare.config.config import Config
+from revelare.utils.logger import get_logger, RevelareLogger
+from revelare.utils.security import InputValidator
+from revelare.utils.geoip_service import GeoIPService
 
 logger = get_logger(__name__)
 report_logger = RevelareLogger.get_logger('reporter')
@@ -88,6 +88,7 @@ class ReportGenerator:
                 stats_cards=self._generate_stats_cards(stats),
                 category_options=category_options,
                 file_options=file_options,
+                total_indicators=len(normalized_data),
                 indicators_table=indicators_table,
                 enriched_section=enriched_section,
                 files_section=files_section
@@ -103,7 +104,9 @@ class ReportGenerator:
     # --- Data Preparation and Statistics ---
 
     def _prepare_report_data(self, findings: Dict[str, Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-        of dictionaries, preparing data for HTML tables and statistics.
+        """
+        Prepare report data from findings dictionary.
+        Normalizes data into a list of dictionaries, preparing data for HTML tables and statistics.
         """
         normalized_data = []
         stats: Dict[str, Any] = {'total': 0, 'files': set()}
@@ -392,6 +395,34 @@ class ReportGenerator:
         .footer {{ text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; color: #666; }}
         .data-section {{ margin: 30px 0; }}
         .data-section h2 {{ color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }}
+
+        /* Filter and Sort Controls */
+        .controls-section {{ display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; }}
+        .control-group {{ display: flex; flex-direction: column; gap: 5px; min-width: 200px; }}
+        .control-group label {{ font-weight: bold; color: #333; font-size: 14px; }}
+        .control-group select, .control-group input {{ padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }}
+        .control-group select:focus, .control-group input:focus {{ outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }}
+
+        .btn-primary, .btn-secondary {{ padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background-color 0.2s; }}
+        .btn-primary {{ background-color: #007bff; color: white; }}
+        .btn-primary:hover {{ background-color: #0056b3; }}
+        .btn-secondary {{ background-color: #6c757d; color: white; }}
+        .btn-secondary:hover {{ background-color: #545b62; }}
+
+        .table-stats {{ margin-bottom: 15px; font-size: 14px; color: #666; }}
+        .table-stats span {{ font-weight: bold; }}
+
+        /* Enhanced table styling */
+        .indicator-value {{ font-family: 'Courier New', monospace; background-color: #f8f9fa; padding: 3px 6px; border-radius: 3px; border: 1px solid #e9ecef; }}
+        .category-badge {{ padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .file-source {{ color: #666; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+        .details-info {{ font-size: 12px; color: #666; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }}
+
+        /* Responsive design */
+        @media (max-width: 768px) {{
+            .controls-section {{ flex-direction: column; align-items: stretch; }}
+            .control-group {{ min-width: auto; }}
+        }}
     </style>
 </head>
 <body>
@@ -405,6 +436,40 @@ class ReportGenerator:
         
         <div class="data-section">
             <h2>All Indicators</h2>
+
+            <!-- Filter and Sort Controls -->
+            <div class="controls-section">
+                <div class="control-group">
+                    <label for="categoryFilter">Filter by Category:</label>
+                    <select id="categoryFilter" onchange="filterData()">
+                        <option value="">All Categories</option>
+                        {category_options}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="fileFilter">Filter by File:</label>
+                    <select id="fileFilter" onchange="filterData()">
+                        <option value="">All Files</option>
+                        {file_options}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="searchFilter">Search:</label>
+                    <input type="text" id="searchFilter" placeholder="Search indicators..." onkeyup="filterData()">
+                </div>
+
+                <div class="control-group">
+                    <button onclick="clearFilters()" class="btn-secondary">Clear Filters</button>
+                    <button onclick="exportFiltered()" class="btn-primary">Export Filtered</button>
+                </div>
+            </div>
+
+            <div class="table-stats">
+                <span id="tableStats">Showing all {total_indicators} indicators</span>
+            </div>
+
             <div id="indicatorsTable">
                 {indicators_table}
             </div>
@@ -417,6 +482,158 @@ class ReportGenerator:
             <p>Generated by Project Revelare - Digital Forensics Platform</p>
         </div>
     </div>
+
+    <script>
+        let originalData = [];
+        let filteredData = [];
+
+        // Initialize data on page load
+        document.addEventListener('DOMContentLoaded', function() {{
+            const table = document.querySelector('#indicatorsTable table');
+            if (table) {{
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function(row) {{
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 5) {{
+                        originalData.push({{
+                            category: cells[0].textContent.trim(),
+                            value: cells[1].textContent.trim(),
+                            details: cells[2].textContent.trim(),
+                            file: cells[3].textContent.trim(),
+                            position: cells[4].textContent.trim(),
+                            element: row
+                        }});
+                    }}
+                }});
+                filteredData = [...originalData];
+                updateTableStats();
+            }}
+        }});
+
+        function sortData(columnIndex) {{
+            const table = document.querySelector('#indicatorsTable table tbody');
+            if (!table) return;
+
+            const rows = Array.from(table.querySelectorAll('tr'));
+            const isNumeric = columnIndex === 4; // Position column
+
+            rows.sort(function(a, b) {{
+                const aVal = a.cells[columnIndex].textContent.trim();
+                const bVal = b.cells[columnIndex].textContent.trim();
+
+                if (isNumeric) {{
+                    return parseInt(aVal) - parseInt(bVal);
+                }} else {{
+                    return aVal.localeCompare(bVal);
+                }}
+            }});
+
+            // Re-append sorted rows
+            rows.forEach(function(row) {{ table.appendChild(row); }});
+        }}
+
+        function filterData() {{
+            const categoryFilter = document.getElementById('categoryFilter').value.toLowerCase();
+            const fileFilter = document.getElementById('fileFilter').value;
+            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+
+            const table = document.querySelector('#indicatorsTable table tbody');
+            if (!table) return;
+
+            const rows = table.querySelectorAll('tr');
+            let visibleCount = 0;
+
+            rows.forEach(function(row) {{
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 5) return;
+
+                const category = cells[0].textContent.trim();
+                const value = cells[1].textContent.trim();
+                const file = cells[3].textContent.trim();
+
+                const matchesCategory = !categoryFilter || category.toLowerCase().includes(categoryFilter);
+                const matchesFile = !fileFilter || file === fileFilter;
+                const matchesSearch = !searchFilter ||
+                    category.toLowerCase().includes(searchFilter) ||
+                    value.toLowerCase().includes(searchFilter) ||
+                    file.toLowerCase().includes(searchFilter);
+
+                if (matchesCategory && matchesFile && matchesSearch) {{
+                    row.style.display = '';
+                    visibleCount++;
+                }} else {{
+                    row.style.display = 'none';
+                }}
+            }});
+
+            updateTableStats(visibleCount);
+        }}
+
+        function clearFilters() {{
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('fileFilter').value = '';
+            document.getElementById('searchFilter').value = '';
+
+            const rows = document.querySelectorAll('#indicatorsTable table tbody tr');
+            rows.forEach(function(row) {{ row.style.display = ''; }});
+            updateTableStats();
+        }}
+
+        function updateTableStats(visibleCount) {{
+            const total = originalData.length;
+            const showing = visibleCount !== undefined ? visibleCount : total;
+            const statsElement = document.getElementById('tableStats');
+
+            if (showing === total) {{
+                statsElement.textContent = 'Showing all ' + total + ' indicators';
+            }} else {{
+                statsElement.textContent = 'Showing ' + showing + ' of ' + total + ' indicators';
+            }}
+        }}
+
+        function exportFiltered() {{
+            const visibleRows = [];
+            const rows = document.querySelectorAll('#indicatorsTable table tbody tr');
+
+            rows.forEach(function(row) {{
+                if (row.style.display !== 'none') {{
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 5) {{
+                        visibleRows.push({{
+                            category: cells[0].textContent.trim(),
+                            value: cells[1].textContent.trim(),
+                            details: cells[2].textContent.trim(),
+                            file: cells[3].textContent.trim(),
+                            position: cells[4].textContent.trim()
+                        }});
+                    }}
+                }}
+            }});
+
+            // Create CSV content
+            const csvContent = [
+                ['Category', 'Value', 'Details', 'File', 'Position'],
+                ...visibleRows.map(function(row) {{ return [
+                    row.category,
+                    row.value,
+                    row.details,
+                    row.file,
+                    row.position
+                ]; }})
+            ].map(function(row) {{ return row.map(function(cell) {{ return '"' + cell + '"'; }}).join(','); }}).join('\\n');
+
+            // Download CSV
+            const blob = new Blob([csvContent], {{ type: 'text/csv' }});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'filtered_indicators.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }}
+    </script>
 </body>
 </html>
         """

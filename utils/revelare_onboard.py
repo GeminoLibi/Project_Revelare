@@ -12,9 +12,9 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 import subprocess
 
-from logger import get_logger, RevelareLogger
-from security import SecurityValidator
-from config import Config
+from revelare.utils.logger import get_logger, RevelareLogger
+from revelare.utils.security import SecurityValidator
+from revelare.config.config import Config
 
 onboard_logger = RevelareLogger.get_logger('onboarding')
 
@@ -144,7 +144,8 @@ class RevelareOnboard:
         incident_type = SecurityValidator.sanitize_filename(case_info["incident_type"].replace(" ", "_"))
         project_name = f"{case_number}_{incident_type}_{datetime.datetime.now().strftime('%Y%m%d')}"
         
-        base_dir = "cases" # Standardized directory
+        from revelare.config.config import Config
+        base_dir = Config.UPLOAD_FOLDER
         project_dir = os.path.join(base_dir, project_name)
         
         print(f"Project Name: {project_name}")
@@ -183,7 +184,7 @@ class RevelareOnboard:
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
         
-        print(f"\n✅ Case metadata saved: {metadata_file}")
+        print(f"\n[OK] Case metadata saved: {metadata_file}")
 
     def get_evidence_files(self, project_dir: str) -> List[str]:
         print("\n[EVIDENCE FILES]")
@@ -203,14 +204,30 @@ class RevelareOnboard:
                 expanded_files = glob.glob(file_input)
                 if expanded_files:
                     evidence_files_source.extend(expanded_files)
-                    print(f"✅ Found {len(expanded_files)} files matching pattern")
+                    print(f"[OK] Found {len(expanded_files)} files matching pattern")
                 else:
-                    print("❌ No files found matching pattern")
+                    print("[ERROR] No files found matching pattern")
             elif os.path.exists(file_input):
-                evidence_files_source.append(file_input)
-                print(f"✅ Added: {file_input}")
+                if os.path.isfile(file_input):
+                    evidence_files_source.append(file_input)
+                    print(f"[OK] Added file: {file_input}")
+                elif os.path.isdir(file_input):
+                    # Expand directory to all files within it
+                    dir_files = []
+                    for root, dirs, files in os.walk(file_input):
+                        for file in files:
+                            full_path = os.path.join(root, file)
+                            dir_files.append(full_path)
+
+                    if dir_files:
+                        evidence_files_source.extend(dir_files)
+                        print(f"[OK] Added directory: {file_input} ({len(dir_files)} files)")
+                    else:
+                        print(f"[WARNING] Directory is empty: {file_input}")
+                else:
+                    print(f"[ERROR] Path exists but is neither file nor directory: {file_input}")
             else:
-                print(f"❌ File not found: {file_input}")
+                print(f"[ERROR] File not found: {file_input}")
         
         # Copy files to evidence directory and rename if duplicates exist
         new_evidence_paths = []
@@ -313,19 +330,19 @@ if __name__ == "__main__":
         with open(script_file, 'w', encoding='utf-8') as f:
             f.write(script_content)
         
-        print(f"✅ Processing script created: {script_file}")
+        print(f"[OK] Processing script created: {script_file}")
 
     def display_next_steps(self, project_dir: str, project_name: str):
         print("\n" + "=" * 60)
         print("ONBOARDING COMPLETE")
         print("=" * 60)
-        print(f"\n📁 Project Directory: {project_dir}")
-        print("\n📋 Next Steps:")
-        print("   1. Place evidence files in the 'evidence/' directory")
-        print("   2. Run the generated processing script from inside the project directory:")
-        print(f"      cd {project_dir}")
-        print("      python process_case.py")
-        print("\n📊 Output will be saved to the 'analysis/' subdirectory.")
+        print(f"\nProject Directory: {project_dir}")
+        print("\nNext Steps:")
+        print("   1. Place evidence files in the 'evidence/' directory")
+        print("   2. Run the generated processing script from inside the project directory:")
+        print(f"      cd {project_dir}")
+        print("      python process_case.py")
+        print("\nOutput will be saved to the 'analysis/' subdirectory.")
 
     def run_complete_maestro(self, process_evidence: bool = True):
         try:
@@ -353,7 +370,7 @@ if __name__ == "__main__":
             if process_evidence:
                 if evidence_files:
                     print("\nStarting immediate evidence processing via generated script...")
-                    print("\n❌ Processing delegated to generated script: **python process_case.py**")
+                    print("\n[INFO] Processing delegated to generated script: **python process_case.py**")
                     return 0
                 else:
                     self.display_next_steps(project_dir, project_name)

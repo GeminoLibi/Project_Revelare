@@ -42,9 +42,8 @@ import ipaddress
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Set
 from dataclasses import dataclass
-from config import Config
-from logger import get_logger
-from constants import *
+from revelare.config.config import Config
+from revelare.utils.logger import get_logger
 
 logger = get_logger()
 

@@ -16,9 +16,9 @@ import time
 import requests
 import logging
 from typing import Dict, Optional, List, Any
-from logger import get_logger, RevelareLogger
-from security import InputValidator
-from config import Config # Import Config for API rate limits
+from revelare.utils.logger import get_logger, RevelareLogger
+from revelare.utils.security import InputValidator
+from revelare.config.config import Config # Import Config for API rate limits
 
 # Initialize logger for this module
 logger = get_logger(__name__)

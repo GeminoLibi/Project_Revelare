@@ -12,8 +12,8 @@ import logging
 from typing import List, Tuple, Optional, Any
 from pathlib import Path
 
-from config import Config
-from logger import get_logger, RevelareLogger 
+from revelare.config.config import Config
+from revelare.utils.logger import get_logger, RevelareLogger 
 
 logger = get_logger(__name__) 
 security_logger = RevelareLogger.get_logger('security') 
@@ -60,10 +60,24 @@ class SecurityValidator:
         
     @staticmethod
     def is_safe_path(target_path: str, base_path: Optional[str] = None) -> bool:
-        """
+        """Validate that a file path is safe and doesn't contain security vulnerabilities."""
         try:
-            target_abs_path = Path(os.path.abspath(target_path)).resolve()
-            
+            # Input validation
+            if not isinstance(target_path, str):
+                security_logger.error("Invalid path type provided to is_safe_path")
+                return False
+
+            if not target_path.strip():
+                security_logger.warning("Empty path provided to is_safe_path")
+                return False
+
+            # Resolve the absolute path safely
+            try:
+                target_abs_path = Path(os.path.abspath(target_path)).resolve()
+            except (OSError, ValueError) as e:
+                security_logger.error(f"Failed to resolve path '{target_path}': {e}")
+                return False
+
             # Check 1: Null Byte Injection
             if '\x00' in target_path:
                  security_logger.critical("Null byte injection attempt blocked.")
@@ -71,29 +85,38 @@ class SecurityValidator:
 
             if base_path:
                 # 2. Containment Check (Directory Traversal)
-                base_abs_path = Path(os.path.abspath(base_path)).resolve()
+                try:
+                    base_abs_path = Path(os.path.abspath(base_path)).resolve()
+                except (OSError, ValueError) as e:
+                    security_logger.error(f"Failed to resolve base path '{base_path}': {e}")
+                    return False
+
                 is_contained = str(target_abs_path).startswith(str(base_abs_path))
                 if not is_contained:
                      security_logger.critical(f"Directory Traversal blocked. Target: {target_abs_path} is outside Base: {base_abs_path}")
                 return is_contained
-            
+
             # 3. Standalone Safety Check
-            normalized_path = os.path.normpath(target_path)
-            
+            try:
+                normalized_path = os.path.normpath(target_path)
+            except (ValueError, TypeError) as e:
+                security_logger.error(f"Failed to normalize path '{target_path}': {e}")
+                return False
+
             if normalized_path.startswith('..'):
                  security_logger.critical(f"Relative path traversal detected in file content: {target_path}")
                  return False
-                 
+
             # 4. Path Length
             max_path_len = getattr(Config, 'MAX_FILE_PATH_LENGTH', 4096)
             if len(target_path) > max_path_len:
                  security_logger.warning(f"Path length exceeds limit: {target_path}")
                  return False
-            
+
             return True
-            
+
         except Exception as e:
-            security_logger.error(f"Error during is_safe_path check: {e}")
+            security_logger.error(f"Unexpected error during is_safe_path check for '{target_path}': {e}")
             return False
             
     # --- File and Content Validation ---

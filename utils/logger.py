@@ -7,7 +7,7 @@ import logging
 import sys
 import os
 from typing import Optional, Dict, Any
-from config import Config 
+from revelare.config.config import Config 
 
 class RevelareLogger:
     
@@ -60,10 +60,6 @@ class RevelareLogger:
             self._logger.warning(f"Could not setup file logging to '{log_file_path}': {e}")
 
     def get_logger(self, name: Optional[str] = None) -> logging.Logger:
-        
-        If 'name' is provided, returns a sub-logger (e.g., 'revelare.extractor').
-        If 'name' is None, returns the root 'revelare' logger.
-        """
         # FIX: Returns the correctly named logger instance
         if name:
             return logging.getLogger(f'revelare.{name}')

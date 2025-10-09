@@ -10,8 +10,8 @@ import tempfile
 import stat
 from typing import Dict, List, Tuple, Any
 from pathlib import Path
-from logger import get_logger, RevelareLogger
-from security import SecurityValidator
+from revelare.utils.logger import get_logger, RevelareLogger
+from revelare.utils.security import SecurityValidator
 import datetime
 from datetime import timezone
 import datetime as dt
