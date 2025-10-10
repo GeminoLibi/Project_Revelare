@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Report Dashboard - {{ project_name }}{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <header class="report-header">
+        <h1><i class="fas fa-tachometer-alt"></i> Executive Dashboard</h1>
+        <p>Project: {{ project_name }}</p>
+    </header>
+    
+    {% include 'report_nav.html' %}
+
+    <main class="main-content">
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-line"></i> Summary</h2>
+                </div>
+                <p><strong>Total Indicators Found:</strong> {{ total_indicators }}</p>
+                <p><strong>Files Processed:</strong> {{ files_processed }}</p>
+                <p><strong>Indicator Categories:</strong> {{ category_count }}</p>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-tags"></i> Top Categories</h2>
+                </div>
+                {% if top_categories %}
+                    <ul>
+                    {% for category, count in top_categories %}
+                        <li>{{ category.replace('_', ' ') }}: {{ count }}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No category data available.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">Recent Indicators (Sample)</div>
+            </div>
+            {% if recent_indicators %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Value</th>
+                        <th>File Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for indicator in recent_indicators %}
+                    <tr>
+                        <td><span class="badge">{{ indicator.category.replace('_', ' ') }}</span></td>
+                        <td><span class="indicator-value">{{ indicator.value }}</span></td>
+                        <td>{{ indicator.file_source }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No recent indicators to display.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}

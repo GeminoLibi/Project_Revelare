@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Debug Page - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="debug-page">
+    <div class="page-header">
+        <h1><i class="fas fa-bug"></i> Debug & Testing</h1>
+        <p>A simple page for testing core application functionality.</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-check-circle"></i> Sanity Checks</h2>
+        <ul style="list-style: none; padding-left: 0;">
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                <strong>CSS & Base Template:</strong> 
+                <span style="color: var(--accent);">If this page is styled correctly, `base.html` and `style.css` are working.</span>
+            </li>
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                <strong>JavaScript:</strong> 
+                <span id="js-status" style="color: var(--danger);">JavaScript has not loaded correctly.</span>
+            </li>
+            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                <strong>Theme System:</strong> 
+                <span>The theme switcher in the navigation bar should be functional.</span>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-vial"></i> Test Components</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+            <button class="btn btn-primary">Primary Button</button>
+            <button class="btn btn-success">Success Button</button>
+            <button class="btn btn-outline">Outline Button</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const jsStatus = document.getElementById('js-status');
+        if (jsStatus) {
+            jsStatus.textContent = 'JavaScript (`main.js`) loaded successfully.';
+            jsStatus.style.color = 'var(--accent)';
+        }
+    });
+</script>
+{% endblock %}

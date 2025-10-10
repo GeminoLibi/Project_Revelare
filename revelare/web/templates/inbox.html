@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Email Inbox - {{ case_name }}{% endblock %}
+
+{% block content %}
+<div class="inbox-container">
+    <header class="inbox-header">
+        <h1><i class="fas fa-inbox"></i> Inbox: {{ case_name }}</h1>
+        <a href="{{ url_for('email_browser') }}" class="btn btn-sm btn-outline" style="color:white; border-color:white;">
+            <i class="fas fa-arrow-left"></i> Back to Email Browser
+        </a>
+    </header>
+
+    <div class="inbox-toolbar">
+        <div class="search-input" style="flex: 1; position: relative;">
+            <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+            <input type="text" id="search-input" placeholder="Search emails..." style="padding-left: 35px; width: 100%;">
+        </div>
+    </div>
+
+    <main class="inbox-main">
+        <div class="email-list-panel" id="email-list-panel">
+            <div class="loading" style="padding: 2rem; text-align: center;">Loading emails...</div>
+            <ul class="email-list" id="email-list"></ul>
+        </div>
+        <div class="email-viewer-panel" id="email-viewer-panel">
+            <div class="empty-state">
+                <i class="fas fa-envelope-open"></i>
+                <h3>Select an email to read</h3>
+                <p>Choose an email from the list on the left to view its contents.</p>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let allEmails = [];
+    let currentEmail = null;
+    const emailListEl = document.getElementById('email-list');
+    const viewerPanelEl = document.getElementById('email-viewer-panel');
+    const searchInputEl = document.getElementById('search-input');
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return 'Unknown date';
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleString();
+        } catch (e) {
+            return dateStr;
+        }
+    }
+
+    function renderEmailList(emails) {
+        if (emails.length === 0) {
+            emailListEl.innerHTML = '<div class="empty-state" style="padding: 1rem;"><p>No emails found.</p></div>';
+            return;
+        }
+        emailListEl.innerHTML = emails.map((email, index) => `
+            <li data-index="${index}">
+                <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(email.subject) || '(No Subject)'}</div>
+                <div style="font-size: 0.9em; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">From: ${escapeHtml(email.from) || 'Unknown'}</div>
+                <div style="font-size: 0.8em; color: #9ca3af;">${formatDate(email.date)}</div>
+            </li>
+        `).join('');
+    }
+
+    function viewEmail(email) {
+        currentEmail = email;
+        const body = email.body_html ? `<iframe></iframe>` : `<pre>${escapeHtml(email.body_plain) || '(No Content)'}</pre>`;
+        
+        viewerPanelEl.innerHTML = `
+            <div style="padding: 2rem;">
+                <h2 style="font-size: 1.75rem; margin-bottom: 1rem;">${escapeHtml(email.subject) || '(No Subject)'}</h2>
+                <div style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem;">
+                    <p><strong>From:</strong> ${escapeHtml(email.from) || 'Unknown'}</p>
+                    <p><strong>To:</strong> ${escapeHtml(email.to) || 'Unknown'}</p>
+                    <p><strong>Date:</strong> ${formatDate(email.date)}</p>
+                </div>
+                <div>${body}</div>
+            </div>
+        `;
+
+        if (email.body_html) {
+            const iframe = viewerPanelEl.querySelector('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '60vh';
+            iframe.style.border = '1px solid var(--border)';
+            iframe.srcdoc = email.body_html;
+        }
+    }
+
+    emailListEl.addEventListener('click', e => {
+        const li = e.target.closest('li');
+        if (li && li.dataset.index) {
+            const index = parseInt(li.dataset.index, 10);
+            const emailsToUse = searchInputEl.value ? allEmails.filter(filterEmails) : allEmails;
+            viewEmail(emailsToUse[index]);
+
+            document.querySelectorAll('.email-list li').forEach(el => el.classList.remove('active'));
+            li.classList.add('active');
+        }
+    });
+
+    const filterEmails = (email) => {
+        const term = searchInputEl.value.toLowerCase();
+        if (!term) return true;
+        return (email.subject && email.subject.toLowerCase().includes(term)) ||
+               (email.from && email.from.toLowerCase().includes(term)) ||
+               (email.to && email.to.toLowerCase().includes(term)) ||
+               (email.body_plain && email.body_plain.toLowerCase().includes(term));
+    };
+
+    searchInputEl.addEventListener('input', () => {
+        const filtered = allEmails.filter(filterEmails);
+        renderEmailList(filtered);
+    });
+
+    fetch(`/api/case_emails/{{ case_name }}`)
+        .then(response => response.json())
+        .then(data => {
+            document.querySelector('.loading').style.display = 'none';
+            if (data.error) {
+                emailListEl.innerHTML = `<div class="empty-state" style="color: var(--danger);"><p>${data.error}</p></div>`;
+                return;
+            }
+            allEmails = data.emails || [];
+            allEmails.sort((a,b) => new Date(b.date) - new Date(a.date)); // Sort newest first
+            renderEmailList(allEmails);
+        })
+        .catch(err => {
+            document.querySelector('.loading').style.display = 'none';
+            emailListEl.innerHTML = `<div class="empty-state" style="color: var(--danger);"><p>Failed to load emails.</p></div>`;
+        });
+});
+</script>
+{% endblock %}
