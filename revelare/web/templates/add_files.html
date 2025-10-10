@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Email Browser - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="email-browser">
+    <div class="page-header">
+        <h1><i class="fas fa-envelope-open-text"></i> Email Browser</h1>
+        <p>Select a case to analyze its contained email archives (MBOX, EML, etc.).</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-folder-open"></i> Cases with Email Archives</h2>
+        
+        {% if cases_with_emails %}
+            <div class="projects-grid">
+                {% for case in cases_with_emails %}
+                <div class="project-card">
+                    <div class="project-header">
+                        <h3>{{ case.name }}</h3>
+                        <span class="status-badge status-completed">
+                            <i class="fas fa-archive"></i> {{ case.email_archive_count }} Archive(s)
+                        </span>
+                    </div>
+                    
+                    <div class="project-stats">
+                        <p>Found the following email archives in this case:</p>
+                        <ul>
+                        {% for archive in case.email_archives[:3] %}
+                            <li>{{ archive.relative_path }} ({{ archive.format|upper }})</li>
+                        {% endfor %}
+                        {% if case.email_archives|length > 3 %}
+                            <li><em>... and {{ case.email_archives|length - 3 }} more.</em></li>
+                        {% endif %}
+                        </ul>
+                    </div>
+                    
+                    <div class="project-actions">
+                        <a href="{{ url_for('inbox', case_name=case.name) }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-inbox"></i> Open Inbox
+                        </a>
+                        <a href="{{ url_for('case_management', case_name=case.name) }}" class="btn btn-sm btn-outline">
+                            <i class="fas fa-cogs"></i> Manage Case
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-envelope"></i>
+                <h3>No Email Archives Found</h3>
+                <p>No email archives (e.g., MBOX, EML) were detected in any of your processed cases. Upload evidence containing email files to begin.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

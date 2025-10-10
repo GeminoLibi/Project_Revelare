@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Indicators Report - {{ project_name }}{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <header class="report-header">
+        <h1><i class="fas fa-search"></i> All Indicators</h1>
+        <p>Project: {{ project_name }}</p>
+    </header>
+    
+    {% include 'report_nav.html' %}
+
+    <main class="main-content">
+        <div class="filters-section">
+            <h3><i class="fas fa-filter"></i> Advanced Filters</h3>
+            <div class="filters-grid">
+                <div class="form-group">
+                    <label for="categoryFilter">Category</label>
+                    <select id="categoryFilter"><option value="">All Categories</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="fileFilter">File Source</label>
+                    <select id="fileFilter"><option value="">All Files</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="searchFilter">Search</label>
+                    <input type="text" id="searchFilter" placeholder="Search values or details...">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="btn btn-sm btn-outline" onclick="manager.clearFilters()">Clear Filters</button>
+                <span id="filterStats" class="help-text"></span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">Indicators</div>
+                <div id="tableStats" class="help-text">Loading...</div>
+            </div>
+            <div id="tableContent">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/report.js') }}"></script>
+<script>
+    let manager;
+    document.addEventListener('DOMContentLoaded', function() {
+        manager = new DataTableManager({
+            endpoint: `/api/report/{{ project_name }}/indicators`,
+            dataKey: 'indicators',
+            tableContentId: 'tableContent',
+            tableStatsId: 'tableStats',
+            filterStatsId: 'filterStats',
+            filterIds: {
+                category: 'categoryFilter',
+                file: 'fileFilter',
+                search: 'searchFilter',
+            },
+            columns: [
+                { key: 'category', label: 'Category' },
+                { key: 'value', label: 'Value' },
+                { key: 'details', label: 'Details' },
+                { key: 'file', label: 'File' },
+                { key: 'position', label: 'Position' }
+            ],
+            filterFunction: (item, filters) => {
+                const searchLower = filters.search.toLowerCase();
+                return (!filters.category || item.category === filters.category) &&
+                       (!filters.file || item.file === filters.file) &&
+                       (!searchLower || 
+                        item.value.toLowerCase().includes(searchLower) ||
+                        item.details.toLowerCase().includes(searchLower));
+            },
+            renderRow: (indicator) => `
+                <tr>
+                    <td><span class="badge category-${indicator.category.toLowerCase().replace(/ /g, '-')}">${indicator.category}</span></td>
+                    <td><span class="indicator-value">${indicator.value}</span></td>
+                    <td><span class="details">${indicator.details}</span></td>
+                    <td><span class="file-source">${indicator.file}</span></td>
+                    <td>${indicator.position}</td>
+                </tr>
+            `
+        });
+        manager.init();
+    });
+</script>
+{% endblock %}

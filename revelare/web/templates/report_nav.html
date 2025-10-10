@@ -1,0 +1,20 @@
+<nav class="report-nav">
+    <ul class="report-nav-list">
+        {% set nav_items = [
+            ('report_dashboard', 'home', 'Dashboard'),
+            ('report_indicators', 'search', 'Indicators'),
+            ('report_geographic', 'globe', 'Geographic'),
+            ('report_security', 'shield-alt', 'Security'),
+            ('report_files', 'file', 'Files'),
+            ('report_technical', 'cogs', 'Technical')
+        ] %}
+        {% for endpoint, icon, label in nav_items %}
+        <li class="report-nav-item">
+            <a href="{{ url_for(endpoint, project_name=project_name) }}" 
+               class="report-nav-link {% if request.endpoint == endpoint %}active{% endif %}">
+                <i class="fas fa-{{ icon }}"></i> {{ label }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</nav>

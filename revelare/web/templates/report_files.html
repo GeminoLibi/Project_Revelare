@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Files Report - {{ project_name }}{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <header class="report-header">
+        <h1><i class="fas fa-file-alt"></i> Processed Files</h1>
+        <p>Project: {{ project_name }}</p>
+    </header>
+    
+    {% include 'report_nav.html' %}
+
+    <main class="main-content">
+        <div class="filters-section">
+            <h3><i class="fas fa-filter"></i> Filters</h3>
+            <div class="filters-grid">
+                <div class="form-group">
+                    <label for="typeFilter">File Type</label>
+                    <select id="typeFilter"><option value="">All Types</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="processed">Processed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchFilter">Search Filename</label>
+                    <input type="text" id="searchFilter" placeholder="Search by name...">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="btn btn-sm btn-outline" onclick="manager.clearFilters()">Clear Filters</button>
+                <span id="filterStats" class="help-text"></span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">File Details</div>
+                <div id="tableStats" class="help-text">Loading...</div>
+            </div>
+            <div id="tableContent">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/report.js') }}"></script>
+<script>
+    let manager;
+    document.addEventListener('DOMContentLoaded', function() {
+        const formatFileSize = (bytes) => {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        };
+
+        manager = new DataTableManager({
+            endpoint: `/api/report/{{ project_name }}/files`,
+            dataKey: 'files',
+            tableContentId: 'tableContent',
+            tableStatsId: 'tableStats',
+            filterStatsId: 'filterStats',
+            filterIds: {
+                type: 'typeFilter',
+                status: 'statusFilter',
+                search: 'searchFilter',
+            },
+            columns: [
+                { key: 'name', label: 'Filename' },
+                { key: 'type', label: 'Type' },
+                { key: 'size', label: 'Size' },
+                { key: 'indicators', label: 'Indicators' },
+                { key: 'status', label: 'Status' }
+            ],
+            filterFunction: (item, filters) => {
+                const searchLower = filters.search.toLowerCase();
+                return (!filters.type || item.type === filters.type) &&
+                       (!filters.status || item.status === filters.status) &&
+                       (!searchLower || item.name.toLowerCase().includes(searchLower));
+            },
+            renderRow: (file) => `
+                <tr>
+                    <td><span class="file-source">${file.name}</span></td>
+                    <td><span class="badge category-default">${file.type}</span></td>
+                    <td>${formatFileSize(file.size)}</td>
+                    <td>${file.indicators}</td>
+                    <td><span class="badge status-${file.status}">${file.status}</span></td>
+                </tr>
+            `
+        });
+        manager.init();
+    });
+</script>
+{% endblock %}

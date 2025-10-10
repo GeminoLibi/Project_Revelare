@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Evidence - {{ case_name }}{% endblock %}
+
+{% block content %}
+<div class="upload-evidence">
+    <div class="page-header">
+        <h1><i class="fas fa-upload"></i> Upload Evidence</h1>
+        <p>Add initial evidence files to case: <strong>{{ case_name }}</strong></p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-file-upload"></i> Select Evidence Files</h2>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_evidence', case_name=case_name) }}">
+            <div class="form-group">
+                <div class="file-upload-area" id="file-upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop files here or click to browse</p>
+                    <input type="file" id="files" name="files" multiple required>
+                </div>
+                <div class="file-list" id="file-list"><div class="no-files">No files selected</div></div>
+            </div>
+
+            <div class="form-group">
+                <label><input type="checkbox" name="recursive" checked> Recursively extract archives (ZIP, RAR, 7Z)</label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large" id="submit-btn">
+                    <i class="fas fa-play"></i> Upload & Process Evidence
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('files');
+        const fileList = document.getElementById('file-list');
+        const fileUploadArea = document.getElementById('file-upload-area');
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            if (!fileInput.files || fileInput.files.length === 0) {
+                fileList.innerHTML = '<div class="no-files">No files selected</div>';
+                return;
+            }
+            Array.from(fileInput.files).forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span><i class="fas fa-file"></i> ${file.name}</span>
+                    <button type="button" class="remove-file-btn" data-index="${index}">&times;</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function removeFile(index) {
+            const dt = new DataTransfer();
+            const files = Array.from(fileInput.files);
+            files.splice(index, 1);
+            files.forEach(file => dt.items.add(file));
+            fileInput.files = dt.files;
+            updateFileList();
+        }
+
+        fileInput.addEventListener('change', updateFileList);
+        
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        });
+        
+        fileUploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            fileInput.files = e.dataTransfer.files;
+            updateFileList();
+        });
+        
+        fileList.addEventListener('click', e => {
+            if(e.target.classList.contains('remove-file-btn')) {
+                const index = parseInt(e.target.dataset.index, 10);
+                removeFile(index);
+            }
+        });
+    });
+</script>
+{% endblock %}

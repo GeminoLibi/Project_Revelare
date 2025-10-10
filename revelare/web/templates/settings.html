@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="settings">
+    <div class="page-header">
+        <h1><i class="fas fa-cog"></i> Settings</h1>
+        <p>Configure API keys and application settings.</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-key"></i> API Keys Configuration</h2>
+        <p class="help-text" style="margin-bottom: 2rem;">Configure API keys for enhanced functionality like transcription and geolocation. These are stored locally and are not required for core features.</p>
+
+        <form method="POST" class="settings-form">
+            <div class="form-group">
+                <label for="openai_api_key">OpenAI API Key (for Whisper Transcription)</label>
+                <div style="position: relative;">
+                    <input type="password" id="openai_api_key" name="openai_api_key"
+                           value="{{ current_settings.get('OPENAI_API_KEY', '') }}"
+                           placeholder="sk-...">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('openai_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="ip_api_key">IP Geolocation API Key (ip-api.com)</label>
+                 <div style="position: relative;">
+                    <input type="password" id="ip_api_key" name="ip_api_key"
+                           value="{{ current_settings.get('IP_API_KEY', '') }}"
+                           placeholder="Optional key for IP lookups">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('ip_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="smtp_server">SMTP Server</label>
+                <input type="text" id="smtp_server" name="smtp_server"
+                       value="{{ current_settings.get('SMTP_SERVER', '') }}"
+                       placeholder="e.g., smtp.gmail.com">
+            </div>
+
+            <div class="form-group">
+                <label for="smtp_port">SMTP Port</label>
+                <input type="number" id="smtp_port" name="smtp_port"
+                       value="{{ current_settings.get('SMTP_PORT', 587) }}"
+                       min="1" max="65535">
+            </div>
+            
+            <div class="form-group">
+                <label for="smtp_username">SMTP Username</label>
+                <input type="email" id="smtp_username" name="smtp_username"
+                       value="{{ current_settings.get('SMTP_USERNAME', '') }}"
+                       placeholder="your-email@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="smtp_password">SMTP Password / App Password</label>
+                <div style="position: relative;">
+                    <input type="password" id="smtp_password" name="smtp_password"
+                           value="{{ current_settings.get('SMTP_PASSWORD', '') }}">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('smtp_password')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePasswordVisibility(inputId) {
+        const input = document.getElementById(inputId);
+        const button = input.nextElementSibling;
+        const icon = button.querySelector('i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+{% endblock %}
