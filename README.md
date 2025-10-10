@@ -1,7 +1,3 @@
-Of course. Based on the complete, refactored application, here are the updated `README.md` and a newly generated `requirements.txt` file.
-
------
-
 ### Updated `README.md`
 
 This version reflects the final file structure, the new `start.py` launcher, and the features we improved.
@@ -501,3 +497,4 @@ For support, issues, or feature requests:
 - **v2.2**: Added web interface, improved reporting
 - **v2.1**: Enhanced extraction capabilities
 - **v2.0**: Complete rewrite with new architecture
+
