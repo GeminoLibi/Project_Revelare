@@ -1,3 +1,0 @@
-"""
-Core Processors Package
-"""

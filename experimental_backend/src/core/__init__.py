@@ -1,3 +1,0 @@
-"""
-Core Business Logic Package
-"""

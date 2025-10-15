@@ -1,3 +1,0 @@
-"""
-Database Layer Package
-"""

@@ -1,3 +1,0 @@
-"""
-API Models Package
-"""
