@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Case Management - {{ case_name }}{% endblock %}
+
+{% block content %}
+<div class="case-management">
+    <div class="page-header">
+        <h1><i class="fas fa-cogs"></i> Case Management</h1>
+        <p>Case: <strong>{{ case_name }}</strong></p>
+    </div>
+
+    <div class="browser-controls">
+        <div class="control-group">
+            <a href="{{ url_for('add_files', case_name=case_name) }}" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Add Files</a>
+            <form method="post" action="{{ url_for('reanalyze_case', case_name=case_name) }}" style="display: inline;">
+                <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('This will re-analyze all evidence files and may take some time. Continue?')"><i class="fas fa-sync-alt"></i> Re-Analyze All</button>
+            </form>
+        </div>
+        <div class="control-group">
+            <input type="text" id="search-input" placeholder="Search files..." class="search-input">
+            <button id="expand-all" class="btn btn-sm btn-outline">Expand All</button>
+            <button id="collapse-all" class="btn btn-sm btn-outline">Collapse All</button>
+        </div>
+    </div>
+
+    <div class="directory-tree" id="tree-container">
+        {% macro render_tree(node) %}
+            <div class="tree-node" data-type="{{ node.type }}">
+                <div class="tree-node-header">
+                    <span class="tree-toggle">
+                        {% if node.type == "directory" and node.children %}<i class="fas fa-chevron-right"></i>{% endif %}
+                    </span>
+                    <span class="tree-icon">
+                        <i class="fas fa-{{ 'folder' if node.type == 'directory' else 'file' }}"></i>
+                    </span>
+                    <span class="tree-name" data-original-text="{{ node.name }}">{{ node.name }}</span>
+                    {% if node.type == "file" and node.formatted_size %}<span class="tree-size">({{ node.formatted_size }})</span>{% endif %}
+                </div>
+                {% if node.type == "directory" and node.children %}
+                    <div class="tree-children">
+                        {% for child in node.children %}{{ render_tree(child) }}{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endmacro %}
+        {{ render_tree(tree) }}
+    </div>
+
+    <div class="card notes-section">
+        <h2><i class="fas fa-sticky-note"></i> Case Notes</h2>
+        <form method="post" action="{{ url_for('save_case_notes', case_name=case_name) }}">
+            <div class="form-group">
+                <label for="case_notes">General Case Notes</label>
+                <textarea name="case_notes" id="case_notes" rows="6" placeholder="Add general notes about this case...">{{ notes.case_notes }}</textarea>
+            </div>
+            <input type="hidden" name="file_notes" id="file_notes_json" value="{{ notes.file_notes|tojson }}">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Notes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        new FileTreeManager('tree-container', 'search-input', 'expand-all', 'collapse-all');
+    });
+</script>
+{% endblock %}

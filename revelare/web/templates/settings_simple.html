@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Revelare{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1><i class="fas fa-cog"></i> API Configuration</h1>
+    <p class="lead">Configure external threat intelligence APIs for enhanced analysis</p>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Note:</strong> Only APIs marked as "IMPLEMENTED" are currently active. 
+        Others are configured but not yet integrated into the analysis pipeline.
+    </div>
+
+    <form method="POST" action="/settings">
+        <div class="row">
+            <!-- IP Geolocation & Threat Intelligence -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="fas fa-shield-alt"></i> IP & Threat Intelligence (IMPLEMENTED)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="ip_api_key">IP-API.com Key (Free)</label>
+                            <div style="position: relative;">
+                                <input type="password" id="ip_api_key" name="ip_api_key"
+                                       value="{{ current_settings.get('IP_API_KEY', '') }}"
+                                       placeholder="Free tier - no key required">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('ip_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Free IP geolocation (1000/day) - <strong>ACTIVE</strong></small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="abuseipdb_api_key">AbuseIPDB API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="abuseipdb_api_key" name="abuseipdb_api_key"
+                                       value="{{ current_settings.get('ABUSEIPDB_API_KEY', '') }}"
+                                       placeholder="For IP reputation checks">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('abuseipdb_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">IP reputation database (1000/day free) - <strong>ACTIVE</strong></small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="virustotal_api_key">VirusTotal API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="virustotal_api_key" name="virustotal_api_key"
+                                       value="{{ current_settings.get('VIRUSTOTAL_API_KEY', '') }}"
+                                       placeholder="For malware and URL analysis">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('virustotal_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Malware/URL analysis (500/hour free) - <strong>ACTIVE</strong></small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="shodan_api_key">Shodan API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="shodan_api_key" name="shodan_api_key"
+                                       value="{{ current_settings.get('SHODAN_API_KEY', '') }}"
+                                       placeholder="For device intelligence">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('shodan_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Device intelligence (100/month free) - <strong>ACTIVE</strong></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Domain & URL Intelligence -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="fas fa-link"></i> Domain & URL Intelligence (IMPLEMENTED)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="urlscan_api_key">URLScan API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="urlscan_api_key" name="urlscan_api_key"
+                                       value="{{ current_settings.get('URLSCAN_API_KEY', '') }}"
+                                       placeholder="For URL analysis and screenshots">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('urlscan_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">URL analysis & screenshots (1000/month free) - <strong>ACTIVE</strong></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Blockchain & Cryptocurrency -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="fas fa-coins"></i> Blockchain & Cryptocurrency (IMPLEMENTED)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="bitcoin_abuse_api_key">Bitcoin Abuse API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="bitcoin_abuse_api_key" name="bitcoin_abuse_api_key"
+                                       value="{{ current_settings.get('BITCOIN_ABUSE_API_KEY', '') }}"
+                                       placeholder="For Bitcoin address reputation">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('bitcoin_abuse_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Bitcoin address reputation - <strong>ACTIVE</strong></small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="chainabuse_api_key">Chainabuse API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="chainabuse_api_key" name="chainabuse_api_key"
+                                       value="{{ current_settings.get('CHAINABUSE_API_KEY', '') }}"
+                                       placeholder="For multi-chain abuse detection">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('chainabuse_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Multi-chain cryptocurrency abuse detection - <strong>ACTIVE</strong></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI/ML Services -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="fas fa-robot"></i> AI/ML Services (CONFIGURED)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="openai_api_key">OpenAI API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="openai_api_key" name="openai_api_key"
+                                       value="{{ current_settings.get('OPENAI_API_KEY', '') }}"
+                                       placeholder="For AI-powered analysis">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('openai_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">AI-powered analysis (not yet implemented)</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="google_speech_api_key">Google Speech API Key</label>
+                            <div style="position: relative;">
+                                <input type="password" id="google_speech_api_key" name="google_speech_api_key"
+                                       value="{{ current_settings.get('GOOGLE_SPEECH_API_KEY', '') }}"
+                                       placeholder="For audio transcription">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('google_speech_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Audio transcription (not yet implemented)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> Save API Keys
+                </button>
+                <a href="/" class="btn btn-secondary btn-lg ml-2">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="settings">
+    <div class="page-header">
+        <h1><i class="fas fa-cog"></i> Settings</h1>
+        <p>Configure API keys and application settings for enhanced threat intelligence.</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-key"></i> API Keys Configuration</h2>
+        <p class="help-text" style="margin-bottom: 2rem;">Configure API keys for enhanced functionality and threat intelligence. These are stored locally and are not required for core features. Copy <code>env.template</code> to <code>.env</code> and fill in your keys.</p>
+
+        <form method="POST" class="settings-form">
+            <!-- AI/ML Services -->
+            <div class="api-section">
+                <h3><i class="fas fa-brain"></i> AI/ML Services</h3>
+                <div class="form-group">
+                    <label for="openai_api_key">OpenAI API Key (for Whisper Transcription)</label>
+                    <div style="position: relative;">
+                        <input type="password" id="openai_api_key" name="openai_api_key"
+                               value="{{ current_settings.get('OPENAI_API_KEY', '') }}"
+                               placeholder="sk-...">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('openai_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="google_speech_api_key">Google Speech API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="google_speech_api_key" name="google_speech_api_key"
+                               value="{{ current_settings.get('GOOGLE_SPEECH_API_KEY', '') }}"
+                               placeholder="AIza...">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('google_speech_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IP Geolocation & Threat Intelligence -->
+            <div class="api-section">
+                <h3><i class="fas fa-globe"></i> IP Geolocation & Threat Intelligence</h3>
+                <div class="form-group">
+                    <label for="ip_api_key">IP-API Key (Free tier available)</label>
+                    <div style="position: relative;">
+                        <input type="password" id="ip_api_key" name="ip_api_key"
+                               value="{{ current_settings.get('IP_API_KEY', '') }}"
+                               placeholder="Optional key for IP lookups">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('ip_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="abuseipdb_api_key">AbuseIPDB API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="abuseipdb_api_key" name="abuseipdb_api_key"
+                               value="{{ current_settings.get('ABUSEIPDB_API_KEY', '') }}"
+                               placeholder="For IP reputation checks">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('abuseipdb_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="virustotal_api_key">VirusTotal API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="virustotal_api_key" name="virustotal_api_key"
+                               value="{{ current_settings.get('VIRUSTOTAL_API_KEY', '') }}"
+                               placeholder="For malware and URL analysis">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('virustotal_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="shodan_api_key">Shodan API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="shodan_api_key" name="shodan_api_key"
+                               value="{{ current_settings.get('SHODAN_API_KEY', '') }}"
+                               placeholder="For network intelligence">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('shodan_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="greynoise_api_key">GreyNoise API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="greynoise_api_key" name="greynoise_api_key"
+                               value="{{ current_settings.get('GREYNOISE_API_KEY', '') }}"
+                               placeholder="For IP noise analysis">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('greynoise_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="crowdstrike_api_key">CrowdStrike API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="crowdstrike_api_key" name="crowdstrike_api_key"
+                               value="{{ current_settings.get('CROWDSTRIKE_API_KEY', '') }}"
+                               placeholder="For threat intelligence">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('crowdstrike_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Domain & URL Intelligence -->
+            <div class="api-section">
+                <h3><i class="fas fa-link"></i> Domain & URL Intelligence</h3>
+                <div class="form-group">
+                    <label for="whois_api_key">Whois API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="whois_api_key" name="whois_api_key"
+                               value="{{ current_settings.get('WHOIS_API_KEY', '') }}"
+                               placeholder="For domain registration data">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('whois_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="urlscan_api_key">URLScan API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="urlscan_api_key" name="urlscan_api_key"
+                               value="{{ current_settings.get('URLSCAN_API_KEY', '') }}"
+                               placeholder="For URL analysis and screenshots">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('urlscan_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="phishtank_api_key">PhishTank API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="phishtank_api_key" name="phishtank_api_key"
+                               value="{{ current_settings.get('PHISHTANK_API_KEY', '') }}"
+                               placeholder="For phishing URL detection">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('phishtank_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email & Communication Intelligence -->
+            <div class="api-section">
+                <h3><i class="fas fa-envelope"></i> Email & Communication Intelligence</h3>
+                <div class="form-group">
+                    <label for="hunter_api_key">Hunter API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="hunter_api_key" name="hunter_api_key"
+                               value="{{ current_settings.get('HUNTER_API_KEY', '') }}"
+                               placeholder="For email verification and finding">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('hunter_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="clearbit_api_key">Clearbit API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="clearbit_api_key" name="clearbit_api_key"
+                               value="{{ current_settings.get('CLEARBIT_API_KEY', '') }}"
+                               placeholder="For company and person enrichment">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('clearbit_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blockchain & Cryptocurrency -->
+            <div class="api-section">
+                <h3><i class="fas fa-coins"></i> Blockchain & Cryptocurrency</h3>
+                <div class="form-group">
+                    <label for="etherscan_api_key">Etherscan API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="etherscan_api_key" name="etherscan_api_key"
+                               value="{{ current_settings.get('ETHERSCAN_API_KEY', '') }}"
+                               placeholder="For Ethereum blockchain analysis">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('etherscan_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="bitcoin_abuse_api_key">Bitcoin Abuse API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="bitcoin_abuse_api_key" name="bitcoin_abuse_api_key"
+                               value="{{ current_settings.get('BITCOIN_ABUSE_API_KEY', '') }}"
+                               placeholder="For Bitcoin address reputation">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('bitcoin_abuse_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="chainabuse_api_key">Chainabuse API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="chainabuse_api_key" name="chainabuse_api_key"
+                               value="{{ current_settings.get('CHAINABUSE_API_KEY', '') }}"
+                               placeholder="For multi-chain cryptocurrency abuse detection">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('chainabuse_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Malware & File Analysis -->
+            <div class="api-section">
+                <h3><i class="fas fa-shield-virus"></i> Malware & File Analysis</h3>
+                <div class="form-group">
+                    <label for="malware_bazaar_api_key">Malware Bazaar API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="malware_bazaar_api_key" name="malware_bazaar_api_key"
+                               value="{{ current_settings.get('MALWARE_BAZAAR_API_KEY', '') }}"
+                               placeholder="For malware sample analysis">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('malware_bazaar_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="any_run_api_key">Any.run API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="any_run_api_key" name="any_run_api_key"
+                               value="{{ current_settings.get('ANY_RUN_API_KEY', '') }}"
+                               placeholder="For dynamic malware analysis">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('any_run_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="hybrid_analysis_api_key">Hybrid Analysis API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="hybrid_analysis_api_key" name="hybrid_analysis_api_key"
+                               value="{{ current_settings.get('HYBRID_ANALYSIS_API_KEY', '') }}"
+                               placeholder="For advanced malware analysis">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('hybrid_analysis_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network & Infrastructure -->
+            <div class="api-section">
+                <h3><i class="fas fa-network-wired"></i> Network & Infrastructure</h3>
+                <div class="form-group">
+                    <label for="censys_api_key">Censys API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="censys_api_key" name="censys_api_key"
+                               value="{{ current_settings.get('CENSYS_API_KEY', '') }}"
+                               placeholder="For internet-wide scanning data">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('censys_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="binaryedge_api_key">BinaryEdge API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="binaryedge_api_key" name="binaryedge_api_key"
+                               value="{{ current_settings.get('BINARYEDGE_API_KEY', '') }}"
+                               placeholder="For attack surface monitoring">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('binaryedge_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="securitytrails_api_key">SecurityTrails API Key</label>
+                    <div style="position: relative;">
+                        <input type="password" id="securitytrails_api_key" name="securitytrails_api_key"
+                               value="{{ current_settings.get('SECURITYTRAILS_API_KEY', '') }}"
+                               placeholder="For DNS and domain history">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('securitytrails_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Server Configuration -->
+            <div class="api-section">
+                <h3><i class="fas fa-server"></i> Email Server Configuration</h3>
+                <div class="form-group">
+                    <label for="smtp_server">SMTP Server</label>
+                    <input type="text" id="smtp_server" name="smtp_server"
+                           value="{{ current_settings.get('SMTP_SERVER', '') }}"
+                           placeholder="e.g., smtp.gmail.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="smtp_port">SMTP Port</label>
+                    <input type="number" id="smtp_port" name="smtp_port"
+                           value="{{ current_settings.get('SMTP_PORT', 587) }}"
+                           min="1" max="65535">
+                </div>
+                
+                <div class="form-group">
+                    <label for="smtp_username">SMTP Username</label>
+                    <input type="email" id="smtp_username" name="smtp_username"
+                           value="{{ current_settings.get('SMTP_USERNAME', '') }}"
+                           placeholder="your-email@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="smtp_password">SMTP Password / App Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="smtp_password" name="smtp_password"
+                               value="{{ current_settings.get('SMTP_PASSWORD', '') }}">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('smtp_password')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePasswordVisibility(inputId) {
+        const input = document.getElementById(inputId);
+        const button = input.nextElementSibling;
+        const icon = button.querySelector('i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+{% endblock %}

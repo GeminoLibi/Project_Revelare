@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="page-header">
+        <h1><i class="fas fa-tachometer-alt"></i> Project Dashboard</h1>
+        <p>Create new cases or manage your existing digital forensics projects</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-plus-circle"></i> Start New Case</h2>
+        <p>Create a new case with proper onboarding and evidence processing.</p>
+        <div class="form-actions">
+            <a href="{{ url_for('create_case') }}" class="btn btn-primary btn-large">
+                <i class="fas fa-folder-plus"></i> Create New Case
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-folder-open"></i> Existing Projects</h2>
+        
+        {% if projects %}
+            <div class="projects-grid">
+                {% for project in projects %}
+                <div class="project-card status-{{ project.status }}">
+                    <div class="project-header">
+                        <h3>{{ project.name }}</h3>
+                        <span class="status-badge status-{{ project.status }}">
+                            {% if project.status == 'processing' %}<i class="fas fa-spinner fa-spin"></i> Processing
+                            {% elif project.status == 'completed' %}<i class="fas fa-check-circle"></i> Completed
+                            {% elif project.status == 'error' %}<i class="fas fa-exclamation-triangle"></i> Error
+                            {% else %}<i class="fas fa-clock"></i> {{ project.status|title }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="project-stats">
+                        <span><i class="fas fa-bullseye"></i> {{ project.findings or 0 }} findings</span>
+                    </div>
+                    
+                    <div class="project-actions">
+                        <a href="{{ url_for('case_management', case_name=project.name) }}" class="btn btn-sm btn-outline"><i class="fas fa-folder-open"></i> Manage Case</a>
+                        {% if project.report_exists %}
+                            <a href="{{ url_for('report_dashboard', project_name=project.name) }}" class="btn btn-sm btn-success" target="_blank"><i class="fas fa-chart-line"></i> View Report</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-folder-open"></i>
+                <h3>No projects yet</h3>
+                <p>Use the "Create New Case" button to get started.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

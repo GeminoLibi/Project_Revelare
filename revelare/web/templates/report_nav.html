@@ -1,0 +1,27 @@
+<nav class="report-nav">
+    <ul class="report-nav-list">
+        {% set nav_items = [
+            ('report_dashboard', 'home', 'Dashboard', ''),
+            ('report_page', 'search', 'Indicators', 'indicators'),
+            ('report_page', 'globe', 'Geographic', 'geographic'),
+            ('report_page', 'shield-alt', 'Security', 'security'),
+            ('report_page', 'file', 'Files', 'files'),
+            ('report_page', 'cogs', 'Technical', 'technical')
+        ] %}
+        {% for endpoint, icon, label, page_arg in nav_items %}
+        <li class="report-nav-item">
+            {% if page_arg %}
+            <a href="{{ url_for(endpoint, project_name=project_name, page=page_arg) }}" 
+               class="report-nav-link {% if request.path.endswith('/' + page_arg) %}active{% endif %}">
+                <i class="fas fa-{{ icon }}"></i> {{ label }}
+            </a>
+            {% else %}
+            <a href="{{ url_for(endpoint, project_name=project_name) }}" 
+               class="report-nav-link {% if request.endpoint == endpoint %}active{% endif %}">
+                <i class="fas fa-{{ icon }}"></i> {{ label }}
+            </a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</nav>
