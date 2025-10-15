@@ -3472,6 +3472,9 @@
             },
             
             wrapText(text, indent = 0) {
+                if (!text || typeof text !== 'string') {
+                    return '';
+                }
                 const prefix = ' '.repeat(indent);
                 const width = 80;
                 let wrappedText = '';
