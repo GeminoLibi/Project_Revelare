@@ -1,0 +1,58 @@
+# Project Revelare Experimental Backend Requirements
+# Modern, secure, and scalable dependencies for the digital forensics platform
+
+# Core Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database & ORM
+sqlalchemy==2.0.23
+alembic==1.12.1
+aiosqlite==0.19.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Configuration & Environment
+pydantic-settings==2.0.3
+python-dotenv==1.0.0
+
+# Rate Limiting
+slowapi==0.1.9
+
+# HTTP Client
+httpx==0.25.0
+
+# File Processing
+python-magic==0.4.27
+Pillow==10.1.0
+
+# Email (Optional)
+sendgrid==6.10.0
+
+# Monitoring & Logging
+structlog==23.2.0
+sentry-sdk[fastapi]==1.35.0
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.0
+faker==20.1.0
+
+# Code Quality
+black==23.11.0
+isort==5.12.0
+mypy==1.7.1
+flake8==6.1.0
+
+# Documentation
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+
+# Utilities
+typer==0.9.0
+rich==13.7.0
+click==8.1.7

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Project Revelare</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+    <!-- Cloudflare Turnstile -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <style>
+        :root {
+            --register-bg: #0f172a;
+            --register-card: #1e293b;
+            --register-border: #334155;
+            --register-text: #f8fafc;
+            --register-text-muted: #94a3b8;
+            --register-primary: #10b981;
+            --register-primary-hover: #059669;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--register-bg) 0%, #1e293b 100%);
+            color: var(--register-text);
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .form-container {
+            background: var(--register-card);
+            border: 1px solid var(--register-border);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+        }
+
+        .btn-register {
+            background: linear-gradient(135deg, var(--register-primary) 0%, #059669 100%);
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-register:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px 0 rgba(16, 185, 129, 0.4);
+        }
+
+        input, select {
+            background: #334155;
+            border: 1px solid var(--register-border);
+            border-radius: 8px;
+            color: var(--register-text);
+            transition: all 0.2s ease-in-out;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--register-primary);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-900">
+    <!-- Include Standard Navigation -->
+    <div id="navigation-container"></div>
+    
+    <!-- Load Smart Navigation -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/components/navigation-public.html');
+                const html = await response.text();
+                document.getElementById('navigation-container').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load smart navigation:', error);
+            }
+        });
+    </script>
+    <div class="w-full max-w-md p-8 space-y-8 rounded-lg shadow-lg form-container">
+        <div class="text-center">
+            <h1 class="text-3xl font-black text-white"><i class="fas fa-user-plus"></i> Create Account</h1>
+            <p class="mt-2 text-gray-400">Join Project Revelare and start your investigation.</p>
+        </div>
+        
+        <form id="registerForm" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="firstName" class="text-sm font-medium text-gray-300">First Name *</label>
+                    <input type="text" id="firstName" name="firstName" required
+                           class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                           placeholder="John">
+                </div>
+                <div>
+                    <label for="lastName" class="text-sm font-medium text-gray-300">Last Name *</label>
+                    <input type="text" id="lastName" name="lastName" required
+                           class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                           placeholder="Doe">
+                </div>
+            </div>
+            
+            <div>
+                <label for="email" class="text-sm font-medium text-gray-300">Email Address *</label>
+                <input type="email" id="email" name="email" required
+                       class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                       placeholder="your-email@agency.gov">
+            </div>
+            
+            <div>
+                <label for="agency" class="text-sm font-medium text-gray-300">Agency/Organization</label>
+                <input type="text" id="agency" name="agency"
+                       class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                       placeholder="FBI, CIA, Local PD, etc.">
+            </div>
+            
+            <div>
+                <label for="phone" class="text-sm font-medium text-gray-300">Phone Number</label>
+                <input type="tel" id="phone" name="phone"
+                       class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                       placeholder="(555) 123-4567">
+            </div>
+            
+            <div>
+                <label for="password" class="text-sm font-medium text-gray-300">Password *</label>
+                <input type="password" id="password" name="password" required minlength="8"
+                       class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                       placeholder="Choose a secure password (min. 8 characters)">
+                <p class="mt-1 text-xs text-gray-500">Must contain: uppercase, lowercase, number, and special character</p>
+            </div>
+            
+            <div>
+                <label for="confirmPassword" class="text-sm font-medium text-gray-300">Confirm Password *</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required
+                       class="w-full px-3 py-2 mt-1 text-white bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                       placeholder="Confirm your password">
+            </div>
+            
+            <div class="flex items-center">
+                <input type="checkbox" id="terms" name="terms" required 
+                       class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                <label for="terms" class="ml-2 block text-sm text-gray-300">
+                    I agree to the <a href="/terms-of-use.html" class="text-green-400 hover:underline">Terms of Use</a> and <a href="/privacy-policy.html" class="text-green-400 hover:underline">Privacy Policy</a>
+                </label>
+            </div>
+
+            <!-- Cloudflare Turnstile -->
+            <div class="flex justify-center">
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAAB6IqoaKmr1Rc-ty" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired" data-error-callback="onTurnstileError"></div>
+            </div>
+
+            <div id="message" class="hidden p-3 text-sm rounded-md"></div>
+
+            <div>
+                <button type="submit" id="submitButton"
+                        class="w-full btn-register text-white font-medium py-3 px-4 rounded-lg transition">
+                    Create Account
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center text-sm text-gray-400">
+            <p>Already have an account? <a href="/login.html" class="font-medium text-green-400 hover:underline">Sign in here</a>.</p>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = (window.location.hostname === 'localhost') ? 'http://localhost:8787' : 'https://project-revelare-backend.liberatorgeminorum.workers.dev';
+        
+        // Turnstile callbacks
+        let turnstileToken = null;
+        
+        function onTurnstileSuccess(token) {
+            turnstileToken = token;
+            console.log('Turnstile verification successful');
+        }
+        
+        function onTurnstileExpired() {
+            turnstileToken = null;
+            console.log('Turnstile verification expired');
+        }
+        
+        function onTurnstileError(error) {
+            turnstileToken = null;
+            console.log('Turnstile verification error:', error);
+        }
+
+        const registerForm = document.getElementById('registerForm');
+        const submitButton = document.getElementById('submitButton');
+        const message = document.getElementById('message');
+
+        // Real-time password matching validation
+        const passwordField = document.getElementById('password');
+        const confirmPasswordField = document.getElementById('confirmPassword');
+        
+        function validatePasswordMatch() {
+            const password = passwordField.value;
+            const confirmPassword = confirmPasswordField.value;
+            
+            if (confirmPassword.length > 0) {
+                if (password !== confirmPassword) {
+                    confirmPasswordField.style.borderColor = '#ef4444'; // red border
+                    confirmPasswordField.style.backgroundColor = '#7f1d1d'; // dark red background
+                } else {
+                    confirmPasswordField.style.borderColor = '#10b981'; // green border
+                    confirmPasswordField.style.backgroundColor = '#064e3b'; // dark green background
+                }
+            } else {
+                confirmPasswordField.style.borderColor = '#374151'; // default border
+                confirmPasswordField.style.backgroundColor = '#1f2937'; // default background
+            }
+        }
+        
+        passwordField.addEventListener('input', validatePasswordMatch);
+        confirmPasswordField.addEventListener('input', validatePasswordMatch);
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            message.classList.add('hidden');
+            
+            // Validate password confirmation
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                message.textContent = 'Passwords do not match. Please make sure both password fields contain the same password.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            if (password.length < 8) {
+                message.textContent = 'Password must be at least 8 characters long.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            // Comprehensive field validation with regex
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const agency = document.getElementById('agency').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            
+            // Name validation (letters, spaces, hyphens, apostrophes only)
+            const nameRegex = /^[a-zA-Z\s\-']{2,50}$/;
+            if (!nameRegex.test(firstName)) {
+                message.textContent = 'First name must be 2-50 characters and contain only letters, spaces, hyphens, and apostrophes.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            if (!nameRegex.test(lastName)) {
+                message.textContent = 'Last name must be 2-50 characters and contain only letters, spaces, hyphens, and apostrophes.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            // Email validation (comprehensive)
+            const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+            if (!emailRegex.test(email)) {
+                message.textContent = 'Please enter a valid email address.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            // Agency validation (optional, but if provided, must be reasonable)
+            if (agency && agency.length > 0) {
+                const agencyRegex = /^[a-zA-Z0-9\s\-.,&()]{2,100}$/;
+                if (!agencyRegex.test(agency)) {
+                    message.textContent = 'Agency name must be 2-100 characters and contain only letters, numbers, spaces, and common punctuation.';
+                    message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                    message.classList.remove('hidden');
+                    return;
+                }
+            }
+            
+            // Phone validation (optional, but if provided, must be valid format)
+            if (phone && phone.length > 0) {
+                const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+                if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+                    message.textContent = 'Please enter a valid phone number (digits, spaces, hyphens, parentheses, and optional + prefix only).';
+                    message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                    message.classList.remove('hidden');
+                    return;
+                }
+            }
+            
+            // Password strength validation (more flexible special characters)
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]{8,}$/;
+            if (!passwordRegex.test(password)) {
+                message.textContent = 'Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            // Validate Turnstile
+            if (!turnstileToken) {
+                message.textContent = 'Please complete the security verification.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+                return;
+            }
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Creating Account...';
+
+            const formData = new FormData(registerForm);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Add Turnstile token to data
+            data.turnstileToken = turnstileToken;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                
+                const responseData = await response.json();
+
+                if (response.ok) {
+                    message.textContent = 'Registration successful! Redirecting to login...';
+                    message.className = 'p-3 text-sm rounded-md bg-green-900/50 text-green-300';
+                    message.classList.remove('hidden');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 2000);
+                } else {
+                    message.textContent = responseData.message || 'An unknown error occurred.';
+                    message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                    message.classList.remove('hidden');
+                }
+            } catch (error) {
+                message.textContent = 'Could not connect to the server. Please try again later.';
+                message.className = 'p-3 text-sm rounded-md bg-red-900/50 text-red-300';
+                message.classList.remove('hidden');
+            } finally {
+                if (!response || !response.ok) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Create Account';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
