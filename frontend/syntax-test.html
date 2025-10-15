@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Syntax Test</title>
+</head>
+<body>
+    <div id="output"></div>
+    <input id="input" type="text">
+    <button id="new-game-btn">New Game</button>
+    
+    <script>
+        console.log('🔍 DEBUG: Testing syntax...');
+        
+        // Test the problematic game object piece by piece
+        const game = {
+            state: {},
+            
+            init(isLoad = false) {
+                console.log('🔍 DEBUG: init called');
+                this.state = this.getInitialState();
+                console.log('🔍 DEBUG: state set');
+            },
+            
+            getInitialState() {
+                const attributes = this.rollAttributes();
+                const background = this.assignHiddenBackground();
+                return {
+                    journal: ["Test journal entry"],
+                    health: 5,
+                    inventory: [],
+                    discoveredCoords: new Set(['0,0,0']),
+                    playerPos: { x: 0, y: 0, z: 0 },
+                    gameOver: false,
+                    won: false,
+                    equippedWeapon: "fists",
+                    playerConditions: new Set(),
+                    time: { hour: 20, minute: 0, day: 1 },
+                    gameState: {
+                        deskSearched: false,
+                        lockboxOpened: false,
+                        cratesSearched: false,
+                        suspicionLevel: 0,
+                        stressLevel: 0,
+                        hunger: 0
+                    }
+                };
+            },
+            
+            rollAttributes() {
+                const roll4d6DropLowest = () => {
+                    const rolls = Array.from({length: 4}, () => Math.floor(Math.random() * 6) + 1);
+                    return rolls.reduce((sum, roll) => sum + roll, 0) - Math.min(...rolls);
+                };
+                return {
+                    constitution: roll4d6DropLowest(), 
+                    perception: roll4d6DropLowest(),
+                    dexterity: roll4d6DropLowest(), 
+                    charisma: roll4d6DropLowest(),
+                    strength: roll4d6DropLowest(), 
+                    luck: roll4d6DropLowest(),
+                };
+            },
+            
+            assignHiddenBackground() {
+                const backgrounds = [
+                    {
+                        name: "Ex-Cop",
+                        trait: "police instincts",
+                        bonuses: { perception: 2, constitution: 1 },
+                        description: "You have an eye for detail and know how to read people.",
+                        backgroundAbility: "Police Training - bonus to investigation and intimidation"
+                    }
+                ];
+                return backgrounds[Math.floor(Math.random() * backgrounds.length)];
+            },
+            
+            processCommand: function(cmd) {
+                console.log('🔍 DEBUG: Game command received:', cmd);
+                document.getElementById('output').innerHTML += '<p>Command: ' + cmd + '</p>';
+            }
+        };
+        
+        console.log('🔍 DEBUG: Game object created successfully!', typeof game);
+        
+        // Test if we can call methods
+        try {
+            game.init();
+            console.log('✅ DEBUG: init() works');
+        } catch(e) {
+            console.error('🚨 DEBUG: init() error:', e.message);
+        }
+        
+        console.log('🔍 DEBUG: Test completed!');
+    </script>
+</body>
+</html>

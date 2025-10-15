@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Automation - Project Revelare</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .card {
+            background-color: #1E293B;
+            border-top: 4px solid #3B82F6;
+        }
+        .enterprise-card {
+            background-color: #1E293B;
+            border-left: 4px solid #8B5CF6;
+            position: relative;
+        }
+        .enterprise-badge {
+            position: absolute;
+            top: -8px;
+            right: 16px;
+            background: linear-gradient(45deg, #8B5CF6, #A855F7);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .automation-step {
+            background-color: #374151;
+            border-left: 4px solid #10B981;
+            transition: all 0.3s ease;
+        }
+        .automation-step:hover {
+            background-color: #4B5563;
+        }
+        .automation-step.executing {
+            background-color: #1F2937;
+            border-left-color: #F59E0B;
+        }
+        .automation-step.completed {
+            background-color: #1F2937;
+            border-left-color: #10B981;
+        }
+        .automation-step.failed {
+            background-color: #1F2937;
+            border-left-color: #EF4444;
+        }
+        .loading-spinner {
+            border: 3px solid #374151;
+            border-top: 3px solid #8B5CF6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .terminal-output {
+            background-color: #111827;
+            border: 1px solid #374151;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <!-- Navigation Container -->
+    <div id="navigation-container"></div>
+
+    <main class="pt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">Application Automation</h1>
+                <p class="text-gray-400">Automate GUI applications and web browsers with AI-powered task execution</p>
+                <div class="mt-2">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-900 text-purple-200">
+                        <i class="fas fa-crown mr-2"></i>
+                        Enterprise Tier Feature
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Automation Setup -->
+                <div class="enterprise-card p-6 rounded-lg">
+                    <div class="enterprise-badge">ENTERPRISE</div>
+                    <h2 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-robot text-purple-500"></i> Automation Setup
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Target Application</label>
+                            <select id="targetType" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="">Select target type...</option>
+                                <option value="web">Web Browser</option>
+                                <option value="desktop">Desktop Application</option>
+                            </select>
+                        </div>
+                        
+                        <div id="webTarget" class="hidden">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Website URL</label>
+                            <input type="url" id="targetUrl" placeholder="https://example.com" 
+                                   class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        
+                        <div id="desktopTarget" class="hidden">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Application Name</label>
+                            <input type="text" id="targetApp" placeholder="notepad.exe, chrome.exe, etc." 
+                                   class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Automation Goal</label>
+                            <textarea id="automationGoal" rows="3" placeholder="Describe what you want to automate..." 
+                                      class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button id="planBtn" onclick="generatePlan()" 
+                                    class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-brain mr-2"></i>
+                                Generate Plan
+                            </button>
+                            <button id="executeBtn" onclick="executeAutomation()" 
+                                    class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fas fa-play mr-2"></i>
+                                Execute
+                            </button>
+                        </div>
+                        
+                        <div id="loadingIndicator" class="hidden text-center">
+                            <div class="loading-spinner mx-auto mb-2"></div>
+                            <p class="text-gray-400">Generating automation plan...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automation Plan & Execution -->
+                <div class="space-y-6">
+                    <!-- Generated Plan -->
+                    <div class="enterprise-card p-6 rounded-lg">
+                        <div class="enterprise-badge">ENTERPRISE</div>
+                        <h3 class="text-lg font-semibold text-white mb-4">
+                            <i class="fas fa-list-ol text-green-500"></i> Automation Plan
+                        </h3>
+                        <div id="automationPlan" class="hidden">
+                            <!-- Plan steps will be populated here -->
+                        </div>
+                        <div id="noPlan" class="text-center text-gray-400 py-8">
+                            <i class="fas fa-clipboard-list text-4xl mb-4"></i>
+                            <p>Generate a plan to see automation steps</p>
+                        </div>
+                    </div>
+
+                    <!-- Execution Log -->
+                    <div class="enterprise-card p-6 rounded-lg">
+                        <div class="enterprise-badge">ENTERPRISE</div>
+                        <h3 class="text-lg font-semibold text-white mb-4">
+                            <i class="fas fa-terminal text-blue-500"></i> Execution Log
+                        </h3>
+                        <div id="executionLog" class="terminal-output p-4 text-green-400">
+                            <div class="text-gray-500">Waiting for automation to start...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Features -->
+            <div class="mt-8">
+                <div class="enterprise-card p-6 rounded-lg">
+                    <div class="enterprise-badge">ENTERPRISE</div>
+                    <h3 class="text-lg font-semibold text-white mb-4">
+                        <i class="fas fa-cogs text-purple-500"></i> Advanced Features
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-gray-800 p-4 rounded-lg">
+                            <h4 class="font-semibold text-white mb-2">
+                                <i class="fas fa-eye text-blue-400"></i> UI Perception
+                            </h4>
+                            <p class="text-sm text-gray-400">AI-powered UI element detection and analysis</p>
+                        </div>
+                        
+                        <div class="bg-gray-800 p-4 rounded-lg">
+                            <h4 class="font-semibold text-white mb-2">
+                                <i class="fas fa-brain text-green-400"></i> Semantic Analysis
+                            </h4>
+                            <p class="text-sm text-gray-400">Natural language command interpretation</p>
+                        </div>
+                        
+                        <div class="bg-gray-800 p-4 rounded-lg">
+                            <h4 class="font-semibold text-white mb-2">
+                                <i class="fas fa-shield-alt text-red-400"></i> Safety Controls
+                            </h4>
+                            <p class="text-sm text-gray-400">Built-in safeguards and error handling</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Smart navigation will be loaded dynamically -->
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Show/hide target inputs based on selection
+            document.getElementById('targetType').addEventListener('change', function() {
+            const webTarget = document.getElementById('webTarget');
+            const desktopTarget = document.getElementById('desktopTarget');
+            
+            if (this.value === 'web') {
+                webTarget.classList.remove('hidden');
+                desktopTarget.classList.add('hidden');
+            } else if (this.value === 'desktop') {
+                webTarget.classList.add('hidden');
+                desktopTarget.classList.remove('hidden');
+            } else {
+                webTarget.classList.add('hidden');
+                desktopTarget.classList.add('hidden');
+            }
+        });
+
+        let currentPlan = null;
+
+        async function generatePlan() {
+            const targetType = document.getElementById('targetType').value;
+            const targetUrl = document.getElementById('targetUrl').value;
+            const targetApp = document.getElementById('targetApp').value;
+            const goal = document.getElementById('automationGoal').value;
+
+            if (!targetType || !goal) {
+                alert('Please select a target type and describe your automation goal');
+                return;
+            }
+
+            if (targetType === 'web' && !targetUrl) {
+                alert('Please enter a website URL');
+                return;
+            }
+
+            if (targetType === 'desktop' && !targetApp) {
+                alert('Please enter an application name');
+                return;
+            }
+
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('Please log in to use automation features');
+                return;
+            }
+
+            try {
+                document.getElementById('loadingIndicator').classList.remove('hidden');
+                document.getElementById('planBtn').disabled = true;
+
+                // Simulate plan generation (in real implementation, this would call the UAAL API)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                const mockPlan = generateMockPlan(targetType, goal);
+                currentPlan = mockPlan;
+
+                displayPlan(mockPlan);
+                document.getElementById('executeBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Plan generation error:', error);
+                alert('Failed to generate automation plan: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                document.getElementById('planBtn').disabled = false;
+            }
+        }
+
+        function generateMockPlan(targetType, goal) {
+            const steps = [];
+            
+            if (targetType === 'web') {
+                steps.push({
+                    id: 1,
+                    action: 'navigate',
+                    description: `Navigate to ${document.getElementById('targetUrl').value}`,
+                    parameters: { url: document.getElementById('targetUrl').value }
+                });
+                
+                if (goal.toLowerCase().includes('login')) {
+                    steps.push({
+                        id: 2,
+                        action: 'click',
+                        description: 'Click on login button',
+                        parameters: { selector: 'login-btn' }
+                    });
+                    steps.push({
+                        id: 3,
+                        action: 'type',
+                        description: 'Enter username',
+                        parameters: { selector: 'username-input', text: 'username' }
+                    });
+                    steps.push({
+                        id: 4,
+                        action: 'type',
+                        description: 'Enter password',
+                        parameters: { selector: 'password-input', text: 'password' }
+                    });
+                    steps.push({
+                        id: 5,
+                        action: 'click',
+                        description: 'Submit login form',
+                        parameters: { selector: 'submit-btn' }
+                    });
+                } else if (goal.toLowerCase().includes('search')) {
+                    steps.push({
+                        id: 2,
+                        action: 'click',
+                        description: 'Click on search input',
+                        parameters: { selector: 'search-input' }
+                    });
+                    steps.push({
+                        id: 3,
+                        action: 'type',
+                        description: 'Enter search query',
+                        parameters: { selector: 'search-input', text: 'search term' }
+                    });
+                    steps.push({
+                        id: 4,
+                        action: 'press',
+                        description: 'Press Enter to search',
+                        parameters: { keys: 'Enter' }
+                    });
+                }
+            } else if (targetType === 'desktop') {
+                steps.push({
+                    id: 1,
+                    action: 'launch',
+                    description: `Launch ${document.getElementById('targetApp').value}`,
+                    parameters: { app: document.getElementById('targetApp').value }
+                });
+                
+                if (goal.toLowerCase().includes('notepad') || goal.toLowerCase().includes('text')) {
+                    steps.push({
+                        id: 2,
+                        action: 'type',
+                        description: 'Type text content',
+                        parameters: { text: 'Hello, this is automated text!' }
+                    });
+                    steps.push({
+                        id: 3,
+                        action: 'press',
+                        description: 'Save the document',
+                        parameters: { keys: 'Ctrl+S' }
+                    });
+                }
+            }
+
+            return {
+                targetType,
+                goal,
+                steps,
+                estimatedDuration: steps.length * 2 + ' seconds'
+            };
+        }
+
+        function displayPlan(plan) {
+            document.getElementById('noPlan').classList.add('hidden');
+            document.getElementById('automationPlan').classList.remove('hidden');
+            
+            const planDiv = document.getElementById('automationPlan');
+            planDiv.innerHTML = `
+                <div class="mb-4 p-4 bg-gray-800 rounded-lg">
+                    <h4 class="font-semibold text-white mb-2">Goal: ${plan.goal}</h4>
+                    <p class="text-sm text-gray-400">Estimated Duration: ${plan.estimatedDuration}</p>
+                </div>
+                <div class="space-y-2">
+                    ${plan.steps.map(step => `
+                        <div class="automation-step p-3 rounded-lg" data-step-id="${step.id}">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <span class="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center text-xs font-semibold mr-3">${step.id}</span>
+                                    <div>
+                                        <div class="font-medium text-white">${step.description}</div>
+                                        <div class="text-sm text-gray-400">${step.action}</div>
+                                    </div>
+                                </div>
+                                <div class="step-status text-gray-500">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function executeAutomation() {
+            if (!currentPlan) {
+                alert('Please generate a plan first');
+                return;
+            }
+
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('Please log in to execute automation');
+                return;
+            }
+
+            try {
+                document.getElementById('executeBtn').disabled = true;
+                const logDiv = document.getElementById('executionLog');
+                
+                // Clear previous log
+                logDiv.innerHTML = '<div class="text-gray-500">Starting automation execution...</div>';
+                
+                // Execute each step
+                for (const step of currentPlan.steps) {
+                    const stepElement = document.querySelector(`[data-step-id="${step.id}"]`);
+                    const statusElement = stepElement.querySelector('.step-status');
+                    
+                    // Mark step as executing
+                    stepElement.classList.add('executing');
+                    statusElement.innerHTML = '<div class="loading-spinner w-4 h-4"></div>';
+                    
+                    // Log step start
+                    logStep(logDiv, `Starting step ${step.id}: ${step.description}`);
+                    
+                    // Simulate step execution
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    // Mark step as completed
+                    stepElement.classList.remove('executing');
+                    stepElement.classList.add('completed');
+                    statusElement.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+                    
+                    // Log step completion
+                    logStep(logDiv, `Completed step ${step.id}: ${step.description}`, 'success');
+                }
+                
+                logStep(logDiv, 'Automation completed successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Execution error:', error);
+                logStep(document.getElementById('executionLog'), 'Automation failed: ' + error.message, 'error');
+            } finally {
+                document.getElementById('executeBtn').disabled = false;
+            }
+        }
+
+        function logStep(logDiv, message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `mb-1 ${colorClass}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
+

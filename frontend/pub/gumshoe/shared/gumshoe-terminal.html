@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GUMSHOE TERMINAL - Choose Your Adventure</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --background-color: #1a1a1a;
+            --text-color: #d0d0d0;
+            --glow-color: #b0b0b0;
+            --border-color: #4a4a4a;
+            --accent-color: #6a6a6a;
+            --font-main: 'VT323', monospace;
+            --font-header: 'Special Elite', cursive;
+        }
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            font-size: 18px;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: url('./logo.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        #terminal-container {
+            width: 95%;
+            max-width: 800px;
+            height: 90vh;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: radial-gradient(ellipse at center, rgba(41, 36, 30, 0.95) 0%, rgba(26, 26, 26, 0.95) 100%);
+            box-shadow: 0 0 5px var(--border-color), 0 0 15px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        #terminal-container::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle, rgba(224, 182, 132, 0.08) 20%, rgba(224, 182, 132, 0) 80%);
+            pointer-events: none;
+            z-index: 10;
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker { 0% { opacity: 0.8; } 50% { opacity: 0.9; } 100% { opacity: 1; } }
+        #header {
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            font-family: var(--font-header);
+            font-size: 24px;
+            color: var(--accent-color);
+            text-shadow: 0 0 5px var(--accent-color);
+            flex-shrink: 0;
+            background-color: rgba(0,0,0,0.2);
+        }
+        #output {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            text-shadow: 0 0 3px var(--glow-color);
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        #input-line {
+            display: flex;
+            padding: 10px 20px;
+            border-top: 1px solid var(--border-color);
+            background-color: rgba(0,0,0,0.2);
+            flex-shrink: 0;
+            align-items: center;
+        }
+        #prompt { color: var(--glow-color); margin-right: 10px; }
+        #input {
+            background: none; border: none; color: var(--text-color);
+            font-family: var(--font-main); font-size: 18px;
+            width: 100%; outline: none; text-shadow: 0 0 3px var(--glow-color);
+        }
+        #output::-webkit-scrollbar { width: 8px; }
+        #output::-webkit-scrollbar-track { background: var(--background-color); }
+        #output::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+        .game-button {
+            background-color: var(--border-color);
+            color: var(--text-color);
+            border: 1px solid var(--glow-color);
+            padding: 8px 16px;
+            margin: 5px;
+            font-family: var(--font-main);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+        .game-button:hover { 
+            background-color: var(--glow-color); 
+            color: var(--background-color); 
+            text-shadow: none; 
+            transform: scale(1.05);
+        }
+        .version-button {
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            border: 2px solid var(--glow-color);
+            padding: 12px 24px;
+            margin: 10px;
+            font-family: var(--font-header);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .version-button:hover { 
+            background-color: var(--glow-color); 
+            color: var(--background-color); 
+            text-shadow: none; 
+            transform: scale(1.1);
+            box-shadow: 0 0 10px var(--glow-color);
+        }
+        .version-description {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid var(--glow-color);
+            background-color: rgba(0,0,0,0.2);
+            font-style: italic;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="terminal-container">
+        <div id="header">GUMSHOE TERMINAL</div>
+        <div id="output"></div>
+        <div id="input-line">
+            <span id="prompt">&gt;</span>
+            <input type="text" id="input" autocomplete="off" autofocus>
+        </div>
+        <div id="controls" style="padding: 10px 20px; border-top: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); text-align: center;">
+            <button id="help-btn" class="game-button">Help</button>
+            <button id="about-btn" class="game-button">About</button>
+            <button id="quit-btn" class="game-button">Quit</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM ELEMENTS ---
+        const output = document.getElementById('output');
+        const input = document.getElementById('input');
+        const helpBtn = document.getElementById('help-btn');
+        const aboutBtn = document.getElementById('about-btn');
+        const quitBtn = document.getElementById('quit-btn');
+
+        // --- TERMINAL STATE ---
+        let currentMode = 'menu'; // 'menu', 'help', 'about'
+
+        // --- INITIALIZATION ---
+        function init() {
+            output.innerHTML = '';
+            showMainMenu();
+        }
+
+        function showMainMenu() {
+            currentMode = 'menu';
+            output.innerHTML = '';
+            
+            const intro = `The rain beats against the window of your office. Three case files sit on your desk, each one a different world, a different mystery waiting to be solved.
+
+Each case bears the same title: "THE CASE OF THE GLOWING ORB"
+But the worlds they inhabit... they couldn't be more different.
+
+Choose your adventure, detective:`;
+
+            typeWriter(intro, 'normal', 30);
+            
+            setTimeout(() => {
+                showVersionOptions();
+            }, 2000);
+        }
+
+        function showVersionOptions() {
+            const versions = [
+                {
+                    name: "NOIR",
+                    description: "Step into the rain-slicked streets of a classic film noir city. Smoke-filled bars, trench coats, and hard-boiled detectives await.",
+                    color: "var(--accent-color)",
+                    url: "/pub/gumshoe/noir/gumshoe.html"
+                },
+                {
+                    name: "CYBERPUNK",
+                    description: "Enter the neon-lit future where corporations rule and neural interfaces blur the line between human and machine.",
+                    color: "#ff00ff",
+                    url: "/pub/gumshoe/neon/gumshoe-neon.html"
+                },
+                {
+                    name: "FANTASY",
+                    description: "Journey to a medieval realm where magic flows through ancient stones and whispers carry secrets of old.",
+                    color: "#a87e4a",
+                    url: "/pub/gumshoe/padfoot/gumshoe-padfoot.html"
+                }
+            ];
+
+            versions.forEach((version, index) => {
+                const button = document.createElement('button');
+                button.className = 'version-button';
+                button.style.borderColor = version.color;
+                button.textContent = `${index + 1}. ${version.name}`;
+                button.onclick = () => selectVersion(version);
+                
+                const desc = document.createElement('div');
+                desc.className = 'version-description';
+                desc.innerHTML = `<strong>${version.name}:</strong> ${version.description}`;
+                
+                output.appendChild(button);
+                output.appendChild(desc);
+                output.appendChild(document.createElement('br'));
+            });
+
+            outputText("\nType a number (1-3) or click a button to select your adventure.", 'cyan');
+        }
+
+        function selectVersion(version) {
+            outputText(`\nYou reach for the ${version.name} case file...`, 'green');
+            outputText(`The world shifts around you as you step into ${version.name.toLowerCase()}...`, 'cyan');
+            
+            setTimeout(() => {
+                window.location.href = version.url;
+            }, 2000);
+        }
+
+        function showHelp() {
+            currentMode = 'help';
+            output.innerHTML = '';
+            
+            const helpText = `GUMSHOE TERMINAL HELP
+========================
+
+COMMANDS:
+---------
+1, 2, 3     - Select adventure version
+help        - Show this help
+about       - Learn about the cases
+quit        - Exit terminal
+
+ADVENTURE VERSIONS:
+------------------
+1. NOIR      - Classic detective story in a rain-soaked city
+2. CYBERPUNK - Futuristic corporate intrigue with neon lights  
+3. FANTASY   - Medieval mystery with magic and ancient secrets
+
+Each version features:
+- Complete interactive fiction gameplay
+- D&D-style attribute system
+- Time management and consequences
+- Multiple endings based on your choices
+- Save/load functionality
+
+All three versions share the same core mystery: "The Case of the Glowing Orb"
+But each unfolds in a completely different world with unique atmosphere, 
+characters, and challenges.
+
+Type 'about' for more details about the cases.`;
+
+            typeWriter(helpText, 'normal', 20);
+        }
+
+        function showAbout() {
+            currentMode = 'about';
+            output.innerHTML = '';
+            
+            const aboutText = `ABOUT THE CASES
+===============
+
+"The Case of the Glowing Orb" is a multi-dimensional mystery that spans 
+three different realities, each with its own unique flavor and challenges.
+
+NOIR VERSION:
+------------
+A classic film noir detective story set in a rain-slicked city. You play 
+a hard-boiled private investigator navigating smoky bars, corrupt officials, 
+and dangerous dames. The atmosphere is thick with cigarette smoke and 
+desperation, but your wits and determination can crack any case.
+
+Features: Traditional detective work, social manipulation, combat with 
+fists and improvised weapons, gambling, and atmospheric smoking/drinking.
+
+CYBERPUNK VERSION:
+------------------
+A futuristic corporate thriller where megacorps rule the neon-lit streets. 
+You're a corporate operative navigating neural interfaces, data heists, and 
+corporate espionage. The world is chrome and synth, but the human element 
+still drives the mystery.
+
+Features: Neural hacking, corporate contracts, cybernetic enhancements, 
+energy drinks, and high-tech surveillance.
+
+FANTASY VERSION:
+----------------
+A medieval fantasy adventure where magic flows through ancient stones and 
+whispers carry secrets. You're a scholar-detective navigating court intrigue, 
+ancient magic, and mystical creatures. The world is parchment and candlelight, 
+but the mysteries run deep.
+
+Features: Magic spells, court politics, ancient artifacts, taverns, and 
+mystical creatures.
+
+Each version offers 20+ commands, multiple locations to explore, NPCs to 
+interact with, and a complete story that can be solved through different 
+approaches. Your choices matter, and the ending depends on how you 
+navigate the mystery.
+
+The core mystery remains the same across all versions, but the tools, 
+methods, and atmosphere are completely different. Choose the world that 
+speaks to you, detective.`;
+
+            typeWriter(aboutText, 'normal', 20);
+        }
+
+        function quit() {
+            outputText("\nThe terminal screen fades to black. The cases will wait for another detective...", 'grey');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+
+        // --- INPUT HANDLING ---
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = input.value.trim().toLowerCase();
+                if (command) {
+                    processCommand(command);
+                    input.value = '';
+                }
+            }
+        });
+
+        function processCommand(command) {
+            const echo = document.createElement('div');
+            echo.style.color = 'var(--glow-color)';
+            echo.textContent = `> ${command}`;
+            output.appendChild(echo);
+
+            if (currentMode === 'menu') {
+                if (command === '1' || command === 'noir') {
+                    selectVersion({name: 'NOIR', url: '/pub/gumshoe/noir/gumshoe.html'});
+                } else if (command === '2' || command === 'cyberpunk') {
+                    selectVersion({name: 'CYBERPUNK', url: '/pub/gumshoe/neon/gumshoe-neon.html'});
+                } else if (command === '3' || command === 'fantasy') {
+                    selectVersion({name: 'FANTASY', url: '/pub/gumshoe/padfoot/gumshoe-padfoot.html'});
+                } else if (command === 'help') {
+                    showHelp();
+                } else if (command === 'about') {
+                    showAbout();
+                } else if (command === 'quit' || command === 'exit') {
+                    quit();
+                } else {
+                    outputText("Invalid command. Type 1, 2, or 3 to select an adventure, or 'help' for more options.", 'fail');
+                }
+            } else if (currentMode === 'help' || currentMode === 'about') {
+                if (command === 'back' || command === 'menu') {
+                    showMainMenu();
+                } else if (command === 'quit' || command === 'exit') {
+                    quit();
+                } else {
+                    outputText("Type 'back' to return to the main menu, or 'quit' to exit.", 'grey');
+                }
+            }
+        }
+
+        // --- UI FUNCTIONS ---
+        function typeWriter(text, className = 'normal', speed = 20) {
+            const p = document.createElement('p');
+            if (className === 'header') p.style.color = 'var(--accent-color)';
+            else if (className === 'cyan') p.style.color = '#8be9fd';
+            else if (className === 'green') p.style.color = '#50fa7b';
+            else if (className === 'fail') p.style.color = '#ff5555';
+            else if (className === 'warning') p.style.color = '#f1fa8c';
+            else if (className === 'grey') p.style.color = '#6272a4';
+
+            output.appendChild(p);
+
+            // Display text instantly instead of character by character
+            p.textContent = text;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function outputText(text, className = 'normal') {
+            const p = document.createElement('div');
+            if (className === 'header') p.style.color = 'var(--accent-color)';
+            else if (className === 'cyan') p.style.color = '#8be9fd';
+            else if (className === 'green') p.style.color = '#50fa7b';
+            else if (className === 'fail') p.style.color = '#ff5555';
+            else if (className === 'warning') p.style.color = '#f1fa8c';
+            else if (className === 'grey') p.style.color = '#6272a4';
+            p.textContent = text;
+            output.appendChild(p);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // --- EVENT LISTENERS ---
+        helpBtn.addEventListener('click', showHelp);
+        aboutBtn.addEventListener('click', showAbout);
+        quitBtn.addEventListener('click', quit);
+
+        // --- START TERMINAL ---
+        init();
+    </script>
+</body>
+</html>
+

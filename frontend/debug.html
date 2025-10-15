@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revelare Debug Console</title>
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            margin: 20px;
+            line-height: 1.4;
+        }
+        .debug-section {
+            border: 1px solid #333;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .debug-section h3 {
+            color: #ffff00;
+            margin-top: 0;
+        }
+        .test-button {
+            background-color: #333;
+            color: #00ff00;
+            border: 1px solid #555;
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .test-button:hover {
+            background-color: #555;
+        }
+        .result {
+            background-color: #000;
+            border: 1px solid #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffff00; }
+        .info { color: #00ffff; }
+        input, textarea {
+            background-color: #333;
+            color: #00ff00;
+            border: 1px solid #555;
+            padding: 5px;
+            margin: 5px;
+            border-radius: 3px;
+        }
+        .login-form {
+            display: inline-block;
+            vertical-align: top;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Revelare Debug Console</h1>
+    <p class="info">This page helps diagnose authentication and API issues. All tests run against the live worker.</p>
+
+    <!-- Environment Info -->
+    <div class="debug-section">
+        <h3>🌍 Environment Information</h3>
+        <div id="env-info" class="result"></div>
+        <button class="test-button" onclick="getEnvironmentInfo()">Get Environment Info</button>
+    </div>
+
+    <!-- Cookie Debug -->
+    <div class="debug-section">
+        <h3>🍪 Cookie Debug</h3>
+        <div id="cookie-info" class="result"></div>
+        <button class="test-button" onclick="debugCookies()">Debug Cookies</button>
+        <button class="test-button" onclick="clearAllCookies()">Clear All Cookies</button>
+    </div>
+
+    <!-- API Tests -->
+    <div class="debug-section">
+        <h3>🔌 API Endpoint Tests</h3>
+        <div id="api-results" class="result"></div>
+        <button class="test-button" onclick="testApiMe()">Test /api/me</button>
+        <button class="test-button" onclick="testApiTest()">Test /api/test</button>
+        <button class="test-button" onclick="testAllEndpoints()">Test All Endpoints</button>
+    </div>
+
+    <!-- Login Test -->
+    <div class="debug-section">
+        <h3>🔐 Login Test</h3>
+        <div class="login-form">
+            <h4>Test Login (Safe Mode):</h4>
+            <input type="email" id="test-email" placeholder="Email" value="test@example.com"><br>
+            <input type="password" id="test-password" placeholder="Password" value="testpassword"><br>
+            <button class="test-button" onclick="testLogin()">Test Login (Safe)</button>
+            <button class="test-button" onclick="testLoginReal()">Test Login (Real Creds)</button>
+        </div>
+        <div id="login-results" class="result"></div>
+    </div>
+
+    <!-- Session Debug -->
+    <div class="debug-section">
+        <h3>🔑 Session Debug</h3>
+        <div id="session-info" class="result"></div>
+        <button class="test-button" onclick="debugSession()">Debug Session</button>
+        <button class="test-button" onclick="testLogout()">Test Logout</button>
+    </div>
+
+    <!-- Navigation Test -->
+    <div class="debug-section">
+        <h3>🧭 Navigation Test</h3>
+        <div id="nav-results" class="result"></div>
+        <button class="test-button" onclick="testNavigation()">Test Smart Navigation</button>
+        <button class="test-button" onclick="testNavComponents()">Test Nav Components</button>
+    </div>
+
+    <!-- HTTPS/Security Test -->
+    <div class="debug-section">
+        <h3>🔒 HTTPS & Security Test</h3>
+        <div id="security-results" class="result"></div>
+        <button class="test-button" onclick="testHTTPS()">Test HTTPS Issues</button>
+        <button class="test-button" onclick="testCORS()">Test CORS</button>
+    </div>
+
+    <!-- Complete Flow Test -->
+    <div class="debug-section">
+        <h3>🔄 Complete Authentication Flow Test</h3>
+        <div id="flow-results" class="result"></div>
+        <button class="test-button" onclick="testCompleteFlow()">Run Complete Flow Test</button>
+    </div>
+
+    <!-- Worker Debug -->
+    <div class="debug-section">
+        <h3>⚙️ Worker Debug</h3>
+        <div id="worker-results" class="result"></div>
+        <button class="test-button" onclick="testWorkerDebug()">Test Worker Debug Endpoint</button>
+        <button class="test-button" onclick="testCookieDebug()">Test Cookie Debug Endpoints</button>
+        <button class="test-button" onclick="testWorkerHealth()">Test Worker Health</button>
+    </div>
+
+    <!-- Network Analysis -->
+    <div class="debug-section">
+        <h3>🌐 Network Analysis</h3>
+        <div id="network-results" class="result"></div>
+        <button class="test-button" onclick="analyzeNetwork()">Analyze Network</button>
+        <button class="test-button" onclick="testDNSResolution()">Test DNS Resolution</button>
+        <button class="test-button" onclick="testLatency()">Test Latency</button>
+    </div>
+
+    <!-- Error Analysis -->
+    <div class="debug-section">
+        <h3>🔍 Error Analysis</h3>
+        <div id="error-results" class="result"></div>
+        <button class="test-button" onclick="analyzeErrors()">Analyze Common Errors</button>
+        <button class="test-button" onclick="testErrorScenarios()">Test Error Scenarios</button>
+    </div>
+
+    <!-- Router Debug -->
+    <div class="debug-section">
+        <h3>🔧 Router Debug</h3>
+        <div id="router-results" class="result"></div>
+        <button class="test-button" onclick="debugRouter()">Debug Router Behavior</button>
+        <button class="test-button" onclick="testAllApiRoutes()">Test All API Routes</button>
+        <button class="test-button" onclick="testSingleApiCall()">Test Single API Call</button>
+    </div>
+
+    <!-- Comprehensive Test Suite -->
+    <div class="debug-section">
+        <h3>🚀 Comprehensive Test Suite</h3>
+        <div id="comprehensive-results" class="result"></div>
+        <button class="test-button" onclick="runComprehensiveTest()" style="background-color: #4CAF50; color: white; font-weight: bold;">🚀 RUN ALL TESTS & GENERATE REPORT</button>
+        <button class="test-button" onclick="clearComprehensiveResults()">Clear Results</button>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://project-revelare-backend.liberatorgeminorum.workers.dev'; // Use the actual API URL
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toISOString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function getEnvironmentInfo() {
+            clearLog('env-info');
+            log('env-info', '=== Environment Information ===', 'info');
+            log('env-info', `User Agent: ${navigator.userAgent}`, 'info');
+            log('env-info', `Platform: ${navigator.platform}`, 'info');
+            log('env-info', `Language: ${navigator.language}`, 'info');
+            log('env-info', `Cookies Enabled: ${navigator.cookieEnabled}`, 'info');
+            log('env-info', `Protocol: ${window.location.protocol}`, 'info');
+            log('env-info', `Host: ${window.location.host}`, 'info');
+            log('env-info', `Origin: ${window.location.origin}`, 'info');
+            log('env-info', `API Base URL: ${API_BASE_URL}`, 'info');
+            log('env-info', `Current Time: ${new Date().toISOString()}`, 'info');
+        }
+
+        async function debugCookies() {
+            clearLog('cookie-info');
+            log('cookie-info', '=== Cookie Debug ===', 'info');
+            log('cookie-info', `Document.cookie: "${document.cookie}"`, 'info');
+            
+            // Test setting a cookie
+            try {
+                document.cookie = "test_cookie=test_value; path=/; secure; samesite=strict";
+                log('cookie-info', 'Set test cookie successfully', 'success');
+                
+                // Check if it was set
+                const cookies = document.cookie.split(';').map(c => c.trim());
+                const testCookie = cookies.find(c => c.startsWith('test_cookie='));
+                if (testCookie) {
+                    log('cookie-info', `Test cookie found: ${testCookie}`, 'success');
+                } else {
+                    log('cookie-info', 'Test cookie NOT found - possible HTTPS/cookie issue', 'error');
+                }
+            } catch (error) {
+                log('cookie-info', `Cookie setting error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAllCookies() {
+            clearLog('cookie-info');
+            log('cookie-info', '=== Clearing All Cookies ===', 'warning');
+            
+            // Get all cookies and clear them
+            const cookies = document.cookie.split(';');
+            cookies.forEach(cookie => {
+                const eqPos = cookie.indexOf('=');
+                const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`;
+            });
+            
+            log('cookie-info', 'All cookies cleared', 'success');
+            log('cookie-info', `Document.cookie now: "${document.cookie}"`, 'info');
+        }
+
+        async function testApiMe() {
+            clearLog('api-results');
+            log('api-results', '=== Testing /api/me ===', 'info');
+            log('api-results', `Current origin: ${window.location.origin}`, 'info');
+            log('api-results', `API Base URL: ${API_BASE_URL}`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/me`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log('api-results', `Response Status: ${response.status} ${response.statusText}`, 'info');
+                log('api-results', `Response Headers: ${JSON.stringify([...response.headers.entries()], null, 2)}`, 'info');
+                
+                const data = await response.text();
+                log('api-results', `Response Body: ${data}`, 'info');
+                
+                if (response.ok) {
+                    log('api-results', '✅ /api/me endpoint working', 'success');
+                } else {
+                    log('api-results', '❌ /api/me endpoint failed', 'error');
+                }
+            } catch (error) {
+                log('api-results', `❌ /api/me error: ${error.message}`, 'error');
+                log('api-results', `Error name: ${error.name}`, 'error');
+                log('api-results', `Error stack: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testApiTest() {
+            log('api-results', '=== Testing /api/test ===', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/test`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                log('api-results', `Response Status: ${response.status} ${response.statusText}`, 'info');
+                const data = await response.text();
+                log('api-results', `Response Body: ${data}`, 'info');
+                
+                if (response.ok) {
+                    log('api-results', '✅ /api/test endpoint working', 'success');
+                } else {
+                    log('api-results', '❌ /api/test endpoint failed', 'error');
+                }
+            } catch (error) {
+                log('api-results', `❌ /api/test error: ${error.message}`, 'error');
+                log('api-results', `Error name: ${error.name}`, 'error');
+                
+                // Try without credentials to see if that works
+                log('api-results', '=== Trying /api/test without credentials ===', 'info');
+                try {
+                    const response2 = await fetch(`${API_BASE_URL}/api/test`, {
+                        method: 'GET'
+                    });
+                    log('api-results', `Without credentials - Status: ${response2.status}`, response2.ok ? 'success' : 'warning');
+                    const data2 = await response2.text();
+                    log('api-results', `Without credentials - Body: ${data2}`, 'info');
+                } catch (error2) {
+                    log('api-results', `Without credentials - Error: ${error2.message}`, 'error');
+                }
+            }
+        }
+
+        async function testAllEndpoints() {
+            clearLog('api-results');
+            log('api-results', '=== Testing All API Endpoints ===', 'info');
+            
+            const endpoints = [
+                '/api/test',
+                '/api/me',
+                '/api/login',
+                '/api/logout',
+                '/api/register'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        method: endpoint === '/api/login' || endpoint === '/api/register' ? 'POST' : 'GET',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: endpoint === '/api/login' || endpoint === '/api/register' ? JSON.stringify({}) : undefined
+                    });
+                    
+                    log('api-results', `${endpoint}: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'warning');
+                } catch (error) {
+                    log('api-results', `${endpoint}: ERROR - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testLogin() {
+            clearLog('login-results');
+            log('login-results', '=== Testing Login ===', 'info');
+            
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            
+            if (!email || !password) {
+                log('login-results', '❌ Please enter email and password', 'error');
+                return;
+            }
+            
+            try {
+                log('login-results', `Attempting login with: ${email}`, 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                log('login-results', `Response Status: ${response.status} ${response.statusText}`, 'info');
+                log('login-results', `Response Headers: ${JSON.stringify([...response.headers.entries()], null, 2)}`, 'info');
+                
+                const data = await response.text();
+                log('login-results', `Response Body: ${data}`, 'info');
+                
+                if (response.ok) {
+                    log('login-results', '✅ Login successful', 'success');
+                    
+                    // Check cookies after login
+                    log('login-results', `Cookies after login: "${document.cookie}"`, 'info');
+                    
+                    // Test /api/me after login
+                    setTimeout(async () => {
+                        log('login-results', '=== Testing /api/me after login ===', 'info');
+                        try {
+                            const meResponse = await fetch(`${API_BASE_URL}/api/me`, {
+                                credentials: 'include'
+                            });
+                            const meData = await meResponse.text();
+                            log('login-results', `/api/me after login: ${meData}`, meResponse.ok ? 'success' : 'error');
+                        } catch (error) {
+                            log('login-results', `/api/me error: ${error.message}`, 'error');
+                        }
+                    }, 1000);
+                } else {
+                    log('login-results', '❌ Login failed', 'error');
+                }
+            } catch (error) {
+                log('login-results', `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        async function debugSession() {
+            clearLog('session-info');
+            log('session-info', '=== Session Debug ===', 'info');
+            
+            // Check localStorage
+            log('session-info', `localStorage authToken: ${localStorage.getItem('authToken')}`, 'info');
+            
+            // Check cookies
+            log('session-info', `Document.cookie: "${document.cookie}"`, 'info');
+            
+            // Test /api/me
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/me`, {
+                    credentials: 'include'
+                });
+                const data = await response.text();
+                log('session-info', `/api/me result: ${data}`, response.ok ? 'success' : 'error');
+            } catch (error) {
+                log('session-info', `/api/me error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogout() {
+            log('session-info', '=== Testing Logout ===', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                log('session-info', `Logout Status: ${response.status} ${response.statusText}`, 'info');
+                const data = await response.text();
+                log('session-info', `Logout Response: ${data}`, 'info');
+                
+                // Check cookies after logout
+                log('session-info', `Cookies after logout: "${document.cookie}"`, 'info');
+                
+                // Clear localStorage
+                localStorage.removeItem('authToken');
+                log('session-info', 'Cleared localStorage authToken', 'info');
+                
+            } catch (error) {
+                log('session-info', `Logout error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testNavigation() {
+            clearLog('nav-results');
+            log('nav-results', '=== Testing Smart Navigation ===', 'info');
+            
+            try {
+                // Test the smart navigation API call directly
+                log('nav-results', 'Testing smart navigation API call...', 'info');
+                const response = await fetch(`${API_BASE_URL}/api/me`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    log('nav-results', `✅ User authenticated: ${userData.firstName} ${userData.lastName}`, 'success');
+                    log('nav-results', `User tier: ${userData.accessTier}`, 'info');
+                    log('nav-results', `Is admin: ${userData.isAdmin}`, 'info');
+                    
+                    // Determine which navigation should be loaded
+                    let expectedNav = '';
+                    if (userData.isAdmin) {
+                        expectedNav = '/components/navigation-admin.html';
+                    } else if (userData.accessTier === 'enterprise') {
+                        expectedNav = '/components/navigation-enterprise.html';
+                    } else if (userData.accessTier === 'professional') {
+                        expectedNav = '/components/navigation-professional.html';
+                    } else {
+                        expectedNav = '/components/navigation-hobbyist.html';
+                    }
+                    
+                    log('nav-results', `Expected navigation: ${expectedNav}`, 'info');
+                } else {
+                    log('nav-results', '❌ User not authenticated - should load public navigation', 'warning');
+                    log('nav-results', 'Expected navigation: /components/navigation-public.html', 'info');
+                }
+                
+            } catch (error) {
+                log('nav-results', `❌ Smart navigation test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testNavComponents() {
+            log('nav-results', '=== Testing Navigation Components ===', 'info');
+            
+            const navComponents = [
+                '/components/navigation-public.html',
+                '/components/navigation-hobbyist.html',
+                '/components/navigation-professional.html',
+                '/components/navigation-admin.html',
+                '/components/smart-navigation.html'
+            ];
+            
+            for (const component of navComponents) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${component}`);
+                    log('nav-results', `${component}: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                } catch (error) {
+                    log('nav-results', `${component}: ERROR - ${error.message}`, 'error');
+                }
+            }
+            
+            // Test the smart navigation loading function
+            log('nav-results', '=== Testing Smart Navigation Loading Function ===', 'info');
+            try {
+                // Simulate the loadNavigationComponent function
+                const testNavResponse = await fetch(`${API_BASE_URL}/components/navigation-public.html`);
+                if (testNavResponse.ok) {
+                    const navContent = await testNavResponse.text();
+                    log('nav-results', '✅ Navigation component loaded successfully', 'success');
+                    log('nav-results', `Navigation content length: ${navContent.length} characters`, 'info');
+                } else {
+                    log('nav-results', '❌ Failed to load navigation component', 'error');
+                }
+            } catch (error) {
+                log('nav-results', `❌ Navigation loading test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHTTPS() {
+            clearLog('security-results');
+            log('security-results', '=== HTTPS & Security Test ===', 'info');
+            
+            log('security-results', `Current protocol: ${window.location.protocol}`, 'info');
+            log('security-results', `Is HTTPS: ${window.location.protocol === 'https:'}`, 'info');
+            
+            // Test secure cookie setting
+            try {
+                document.cookie = "secure_test=value; secure; samesite=strict";
+                const hasSecureCookie = document.cookie.includes('secure_test');
+                log('security-results', `Secure cookie test: ${hasSecureCookie ? 'SUCCESS' : 'FAILED'}`, hasSecureCookie ? 'success' : 'error');
+            } catch (error) {
+                log('security-results', `Secure cookie error: ${error.message}`, 'error');
+            }
+            
+            // Test mixed content
+            const hasMixedContent = document.querySelector('img[src^="http:"]') || document.querySelector('script[src^="http:"]');
+            log('security-results', `Mixed content detected: ${hasMixedContent ? 'YES' : 'NO'}`, hasMixedContent ? 'warning' : 'success');
+        }
+
+        async function testCORS() {
+            log('security-results', '=== CORS Test ===', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/test`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': https://project-revelare-backend.liberatorgeminorum.workers.dev,
+                        'Access-Control-Request-Method': 'GET',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                log('security-results', `CORS preflight: ${response.status} ${response.statusText}`, 'info');
+                log('security-results', `CORS headers: ${JSON.stringify([...response.headers.entries()], null, 2)}`, 'info');
+                
+            } catch (error) {
+                log('security-results', `CORS test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCompleteFlow() {
+            clearLog('flow-results');
+            log('flow-results', '=== Complete Authentication Flow Test ===', 'info');
+            
+            // Step 1: Clear everything
+            log('flow-results', 'Step 1: Clearing all data...', 'info');
+            clearAllCookies();
+            localStorage.clear();
+            
+            // Step 2: Test unauthenticated state
+            log('flow-results', 'Step 2: Testing unauthenticated state...', 'info');
+            await testApiMe();
+            
+            // Step 3: Test login
+            log('flow-results', 'Step 3: Testing login...', 'info');
+            await testLogin();
+            
+            // Step 4: Test authenticated state
+            log('flow-results', 'Step 4: Testing authenticated state...', 'info');
+            setTimeout(async () => {
+                await testApiMe();
+                
+                // Step 5: Test logout
+                log('flow-results', 'Step 5: Testing logout...', 'info');
+                await testLogout();
+                
+                // Step 6: Test post-logout state
+                log('flow-results', 'Step 6: Testing post-logout state...', 'info');
+                setTimeout(async () => {
+                    await testApiMe();
+                    log('flow-results', '=== Complete Flow Test Finished ===', 'success');
+                }, 1000);
+            }, 2000);
+        }
+
+        // New enhanced debug functions
+        async function testWorkerDebug() {
+            clearLog('worker-results');
+            log('worker-results', '=== Testing Worker Debug Endpoint ===', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/debug`, {
+                    credentials: 'include'
+                });
+                
+                log('worker-results', `Response Status: ${response.status} ${response.statusText}`, 'info');
+                const data = await response.text();
+                log('worker-results', `Response Body: ${data}`, 'info');
+                
+                if (response.ok) {
+                    log('worker-results', '✅ Worker debug endpoint working', 'success');
+                } else {
+                    log('worker-results', '❌ Worker debug endpoint failed', 'error');
+                }
+            } catch (error) {
+                log('worker-results', `❌ Worker debug error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCookieDebug() {
+            log('worker-results', '=== Testing Cookie Debug Endpoints ===', 'info');
+            
+            try {
+                // Test setting a debug cookie
+                const setResponse = await fetch(`${API_BASE_URL}/api/debug/set-cookie`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                log('worker-results', `Set Cookie Status: ${setResponse.status}`, 'info');
+                const setData = await setResponse.text();
+                log('worker-results', `Set Cookie Response: ${setData}`, 'info');
+                
+                // Test reading the debug cookie
+                const readResponse = await fetch(`${API_BASE_URL}/api/debug/read-cookie`, {
+                    credentials: 'include'
+                });
+                
+                log('worker-results', `Read Cookie Status: ${readResponse.status}`, 'info');
+                const readData = await readResponse.text();
+                log('worker-results', `Read Cookie Response: ${readData}`, 'info');
+                
+            } catch (error) {
+                log('worker-results', `❌ Cookie debug error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWorkerHealth() {
+            log('worker-results', '=== Testing Worker Health ===', 'info');
+            
+            const endpoints = ['/api/test', '/api/debug', '/api/me'];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const startTime = performance.now();
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        credentials: 'include'
+                    });
+                    const endTime = performance.now();
+                    
+                    log('worker-results', `${endpoint}: ${response.status} (${Math.round(endTime - startTime)}ms)`, 
+                        response.ok ? 'success' : 'warning');
+                } catch (error) {
+                    log('worker-results', `${endpoint}: ERROR - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function analyzeNetwork() {
+            clearLog('network-results');
+            log('network-results', '=== Network Analysis ===', 'info');
+            
+            log('network-results', `Connection Type: ${navigator.connection?.effectiveType || 'Unknown'}`, 'info');
+            log('network-results', `Connection Speed: ${navigator.connection?.downlink || 'Unknown'} Mbps`, 'info');
+            log('network-results', `Connection RTT: ${navigator.connection?.rtt || 'Unknown'} ms`, 'info');
+            log('network-results', `Online Status: ${navigator.onLine ? 'Online' : 'Offline'}`, 'info');
+            
+            // Test different protocols
+            const protocols = ['https:', 'http:'];
+            for (const protocol of protocols) {
+                try {
+                    const testUrl = `${protocol}//${window.location.host}/api/test`;
+                    const response = await fetch(testUrl, { method: 'HEAD' });
+                    log('network-results', `${protocol} test: ${response.status}`, response.ok ? 'success' : 'warning');
+                } catch (error) {
+                    log('network-results', `${protocol} test: ERROR - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testDNSResolution() {
+            log('network-results', '=== DNS Resolution Test ===', 'info');
+            
+            const domains = [window.location.hostname, 'project-revelare-backend.liberatorgeminorum.workers.dev'];
+            
+            for (const domain of domains) {
+                try {
+                    const startTime = performance.now();
+                    const response = await fetch(`https://${domain}/api/test`, { method: 'HEAD' });
+                    const endTime = performance.now();
+                    
+                    log('network-results', `${domain}: ${response.status} (${Math.round(endTime - startTime)}ms)`, 
+                        response.ok ? 'success' : 'warning');
+                } catch (error) {
+                    log('network-results', `${domain}: ERROR - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testLatency() {
+            log('network-results', '=== Latency Test ===', 'info');
+            
+            const iterations = 5;
+            const latencies = [];
+            
+            for (let i = 0; i < iterations; i++) {
+                try {
+                    const startTime = performance.now();
+                    await fetch(`${API_BASE_URL}/api/test`, { method: 'HEAD' });
+                    const endTime = performance.now();
+                    const latency = Math.round(endTime - startTime);
+                    latencies.push(latency);
+                    log('network-results', `Test ${i + 1}: ${latency}ms`, 'info');
+                } catch (error) {
+                    log('network-results', `Test ${i + 1}: ERROR - ${error.message}`, 'error');
+                }
+            }
+            
+            if (latencies.length > 0) {
+                const avgLatency = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
+                const minLatency = Math.min(...latencies);
+                const maxLatency = Math.max(...latencies);
+                
+                log('network-results', `Average Latency: ${avgLatency}ms`, 'info');
+                log('network-results', `Min Latency: ${minLatency}ms`, 'info');
+                log('network-results', `Max Latency: ${maxLatency}ms`, 'info');
+            }
+        }
+
+        async function analyzeErrors() {
+            clearLog('error-results');
+            log('error-results', '=== Error Analysis ===', 'info');
+            
+            const commonErrors = [
+                { name: 'CORS Error', test: () => fetch('https://httpbin.org/get') },
+                { name: 'Network Error', test: () => fetch('https://nonexistent-domain-12345.com') },
+                { name: 'Timeout Error', test: () => fetch(`${API_BASE_URL}/api/test`, { signal: AbortSignal.timeout(100) }) }
+            ];
+            
+            for (const errorTest of commonErrors) {
+                try {
+                    await errorTest.test();
+                    log('error-results', `${errorTest.name}: No error (unexpected)`, 'warning');
+                } catch (error) {
+                    log('error-results', `${errorTest.name}: ${error.name} - ${error.message}`, 'info');
+                }
+            }
+        }
+
+        async function testErrorScenarios() {
+            log('error-results', '=== Testing Error Scenarios ===', 'info');
+            
+            // Test malformed requests
+            const scenarios = [
+                { name: 'Invalid JSON', body: 'invalid json', headers: { 'Content-Type': 'application/json' } },
+                { name: 'Missing Content-Type', body: JSON.stringify({}), headers: {} },
+                { name: 'Empty Body', body: '', headers: { 'Content-Type': 'application/json' } }
+            ];
+            
+            for (const scenario of scenarios) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/login`, {
+                        method: 'POST',
+                        headers: scenario.headers,
+                        body: scenario.body
+                    });
+                    log('error-results', `${scenario.name}: ${response.status}`, 'info');
+                } catch (error) {
+                    log('error-results', `${scenario.name}: ${error.message}`, 'info');
+                }
+            }
+        }
+
+        async function testPerformance() {
+            clearLog('performance-results');
+            log('performance-results', '=== Performance Test ===', 'info');
+            
+            const tests = [
+                { name: 'API Test', url: '/api/test' },
+                { name: 'API Debug', url: '/api/debug' },
+                { name: 'API Me', url: '/api/me' }
+            ];
+            
+            for (const test of tests) {
+                const times = [];
+                const iterations = 3;
+                
+                for (let i = 0; i < iterations; i++) {
+                    try {
+                        const startTime = performance.now();
+                        const response = await fetch(`${API_BASE_URL}${test.url}`, {
+                            credentials: 'include'
+                        });
+                        const endTime = performance.now();
+                        times.push(endTime - startTime);
+                    } catch (error) {
+                        log('performance-results', `${test.name}: ERROR - ${error.message}`, 'error');
+                    }
+                }
+                
+                if (times.length > 0) {
+                    const avgTime = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+                    log('performance-results', `${test.name}: ${avgTime}ms average`, 'info');
+                }
+            }
+        }
+
+        async function testConcurrentRequests() {
+            log('performance-results', '=== Concurrent Requests Test ===', 'info');
+            
+            const concurrentCount = 5;
+            const promises = [];
+            
+            const startTime = performance.now();
+            
+            for (let i = 0; i < concurrentCount; i++) {
+                promises.push(
+                    fetch(`${API_BASE_URL}/api/test`, { credentials: 'include' })
+                        .then(response => ({ success: true, status: response.status }))
+                        .catch(error => ({ success: false, error: error.message }))
+                );
+            }
+            
+            try {
+                const results = await Promise.all(promises);
+                const endTime = performance.now();
+                const totalTime = Math.round(endTime - startTime);
+                
+                const successCount = results.filter(r => r.success).length;
+                const failureCount = results.filter(r => !r.success).length;
+                
+                log('performance-results', `Concurrent requests (${concurrentCount}): ${totalTime}ms total`, 'info');
+                log('performance-results', `Success: ${successCount}, Failures: ${failureCount}`, 'info');
+                
+                results.forEach((result, index) => {
+                    if (result.success) {
+                        log('performance-results', `Request ${index + 1}: ${result.status}`, 'success');
+                    } else {
+                        log('performance-results', `Request ${index + 1}: ERROR - ${result.error}`, 'error');
+                    }
+                });
+            } catch (error) {
+                log('performance-results', `Concurrent test error: ${error.message}`, 'error');
+            }
+        }
+
+        // Router Debug Functions
+        async function testSingleApiCall() {
+            clearLog('router-results');
+            log('router-results', '=== Testing Single API Call ===', 'info');
+            
+            // Test 1: Try without credentials
+            try {
+                const url = `${API_BASE_URL}/api/test`;
+                log('router-results', `Testing URL: ${url}`, 'info');
+                log('router-results', `Current origin: ${https://project-revelare-backend.liberatorgeminorum.workers.dev}`, 'info');
+                
+                log('router-results', 'Test 1: Without credentials', 'info');
+                const response1 = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                log('router-results', `Response status: ${response1.status}`, 'info');
+                const data1 = await response1.text();
+                log('router-results', `Response body: ${data1}`, 'info');
+                
+                if (response1.ok) {
+                    log('router-results', '✅ Test 1 successful!', 'success');
+                } else {
+                    log('router-results', '❌ Test 1 failed', 'error');
+                }
+                
+            } catch (error) {
+                log('router-results', `❌ Test 1 error: ${error.message}`, 'error');
+            }
+            
+            // Test 2: Try with credentials
+            try {
+                log('router-results', 'Test 2: With credentials', 'info');
+                const response2 = await fetch(`${API_BASE_URL}/api/test`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'include'
+                });
+                
+                log('router-results', `Response status: ${response2.status}`, 'info');
+                const data2 = await response2.text();
+                log('router-results', `Response body: ${data2}`, 'info');
+                
+                if (response2.ok) {
+                    log('router-results', '✅ Test 2 successful!', 'success');
+                } else {
+                    log('router-results', '❌ Test 2 failed', 'error');
+                }
+                
+            } catch (error) {
+                log('router-results', `❌ Test 2 error: ${error.message}`, 'error');
+            }
+            
+            // Test 3: Try with no-cors mode
+            try {
+                log('router-results', 'Test 3: No-cors mode', 'info');
+                const response3 = await fetch(`${API_BASE_URL}/api/test`, {
+                    method: 'GET',
+                    mode: 'no-cors'
+                });
+                
+                log('router-results', `Response status: ${response3.status}`, 'info');
+                log('router-results', `Response type: ${response3.type}`, 'info');
+                
+                if (response3.type === 'opaque') {
+                    log('router-results', '✅ Test 3 successful (opaque response)!', 'success');
+                } else {
+                    log('router-results', '❌ Test 3 failed', 'error');
+                }
+                
+            } catch (error) {
+                log('router-results', `❌ Test 3 error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function debugRouter() {
+            clearLog('router-results');
+            log('router-results', '=== Router Debug ===', 'info');
+            
+            const testRoutes = [
+                { path: '/api/test', method: 'GET', expected: 'JSON' },
+                { path: '/api/debug', method: 'GET', expected: 'JSON' },
+                { path: '/api/me', method: 'GET', expected: 'JSON' },
+                { path: '/api/login', method: 'POST', expected: 'JSON' },
+                { path: '/api/invalid-endpoint', method: 'GET', expected: '404' },
+                { path: '/api/test', method: 'OPTIONS', expected: 'CORS' }
+            ];
+            
+            for (const route of testRoutes) {
+                try {
+                    log('router-results', `Testing ${route.method} ${route.path}...`, 'info');
+                    
+                    const response = await fetch(`${API_BASE_URL}${route.path}`, {
+                        method: route.method,
+                        headers: route.method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+                        body: route.method === 'POST' ? JSON.stringify({ test: 'data' }) : undefined
+                    });
+                    
+                    const data = await response.text();
+                    const contentType = response.headers.get('content-type') || 'unknown';
+                    
+                    log('router-results', `  Status: ${response.status} ${response.statusText}`, 'info');
+                    log('router-results', `  Content-Type: ${contentType}`, 'info');
+                    log('router-results', `  Body (first 100 chars): ${data.substring(0, 100)}...`, 'info');
+                    
+                    // Analyze the response
+                    if (route.expected === 'JSON') {
+                        if (contentType.includes('application/json')) {
+                            log('router-results', `  ✅ Correctly returns JSON`, 'success');
+                        } else {
+                            log('router-results', `  ❌ Expected JSON, got ${contentType}`, 'error');
+                        }
+                    } else if (route.expected === '404') {
+                        if (response.status === 404) {
+                            log('router-results', `  ✅ Correctly returns 404`, 'success');
+                        } else {
+                            log('router-results', `  ❌ Expected 404, got ${response.status}`, 'error');
+                        }
+                    } else if (route.expected === 'CORS') {
+                        if (response.status === 200) {
+                            log('router-results', `  ✅ CORS preflight handled`, 'success');
+                        } else {
+                            log('router-results', `  ❌ CORS preflight failed: ${response.status}`, 'error');
+                        }
+                    }
+                    
+                } catch (error) {
+                    log('router-results', `  ❌ Error: ${error.message}`, 'error');
+                }
+                
+                log('router-results', '', 'info');
+            }
+        }
+        
+        async function testAllApiRoutes() {
+            clearLog('router-results');
+            log('router-results', '=== Testing All API Routes ===', 'info');
+            
+            const apiRoutes = [
+                '/api/test',
+                '/api/debug',
+                '/api/me',
+                '/api/login',
+                '/api/logout',
+                '/api/register',
+                '/api/user',
+                '/api/cases',
+                '/api/games/saves/noir',
+                '/api/game-data/noir',
+                '/api/news',
+                '/api/forum/posts',
+                '/api/admin/users',
+                '/api/payments/subscription-status',
+                '/api/security/status',
+                '/api/knowledge-base',
+                '/api/bug-reports',
+                '/api/notifications'
+            ];
+            
+            for (const route of apiRoutes) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${route}`, {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+                    
+                    const contentType = response.headers.get('content-type') || 'unknown';
+                    const isJson = contentType.includes('application/json');
+                    const isHtml = contentType.includes('text/html');
+                    
+                    let status = 'info';
+                    if (response.status === 200 && isJson) {
+                        status = 'success';
+                    } else if (response.status === 401 && isJson) {
+                        status = 'success'; // Expected for auth-required routes
+                    } else if (response.status === 404 && isJson) {
+                        status = 'success'; // Expected for some routes
+                    } else if (isHtml) {
+                        status = 'error'; // Should not return HTML
+                    } else {
+                        status = 'warning';
+                    }
+                    
+                    log('router-results', `${route}: ${response.status} (${contentType})`, status);
+                    
+                } catch (error) {
+                    log('router-results', `${route}: ERROR - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Comprehensive Test Suite
+        let testResults = [];
+        
+        function clearComprehensiveResults() {
+            document.getElementById('comprehensive-results').innerHTML = '';
+            testResults = [];
+        }
+        
+        function addTestResult(testName, status, details = '') {
+            testResults.push({ name: testName, status, details });
+        }
+        
+        function logComprehensive(message, type = 'info') {
+            const element = document.getElementById('comprehensive-results');
+            const timestamp = new Date().toISOString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        async function runComprehensiveTest() {
+            clearComprehensiveResults();
+            testResults = [];
+            
+            logComprehensive('🚀 STARTING COMPREHENSIVE TEST SUITE', 'info');
+            logComprehensive('=====================================', 'info');
+            
+            const startTime = performance.now();
+            
+            // Test 1: Environment Check
+            await testEnvironment();
+            
+            // Test 2: Basic API Connectivity
+            await testBasicConnectivity();
+            
+            // Test 3: Authentication Flow
+            await testAuthenticationFlow();
+            
+            // Test 4: Cookie System
+            await testCookieSystem();
+            
+            // Test 5: Navigation System
+            await testNavigationSystem();
+            
+            // Test 6: Worker Health
+            await testWorkerHealthComprehensive();
+            
+            // Test 7: Network Performance
+            await testNetworkPerformance();
+            
+            // Test 8: Error Handling
+            await testErrorHandling();
+            
+            // Test 9: Security & HTTPS
+            await testSecurity();
+            
+            const endTime = performance.now();
+            const totalTime = Math.round(endTime - startTime);
+            
+            // Generate Final Report
+            generateFinalReport(totalTime);
+        }
+        
+        async function testEnvironment() {
+            logComprehensive('📋 Testing Environment...', 'info');
+            
+            try {
+                const tests = [
+                    { name: 'HTTPS Protocol', test: () => window.location.protocol === 'https:' },
+                    { name: 'Cookies Enabled', test: () => navigator.cookieEnabled },
+                    { name: 'Online Status', test: () => navigator.onLine },
+                    { name: 'API Base URL', test: () => API_BASE_URL === 'https://project-revelare-backend.liberatorgeminorum.workers.dev' }
+                ];
+                
+                for (const test of tests) {
+                    try {
+                        const result = test.test();
+                        if (result) {
+                            addTestResult(`Environment: ${test.name}`, 'PASSED');
+                            logComprehensive(`✅ Environment: ${test.name} - PASSED`, 'success');
+                        } else {
+                            addTestResult(`Environment: ${test.name}`, 'FAILED', 'Condition not met');
+                            logComprehensive(`❌ Environment: ${test.name} - FAILED`, 'error');
+                        }
+                    } catch (error) {
+                        addTestResult(`Environment: ${test.name}`, 'FAILED', error.message);
+                        logComprehensive(`❌ Environment: ${test.name} - FAILED: ${error.message}`, 'error');
+                    }
+                }
+            } catch (error) {
+                addTestResult('Environment Tests', 'FAILED', error.message);
+                logComprehensive(`❌ Environment Tests - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testBasicConnectivity() {
+            logComprehensive('🌐 Testing Basic Connectivity...', 'info');
+            logComprehensive(`API_BASE_URL: ${API_BASE_URL}`, 'info');
+            
+            const endpoints = [
+                { name: '/api/test', method: 'GET' },
+                { name: '/api/debug', method: 'GET' },
+                { name: '/api/me', method: 'GET' }
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const fullUrl = `${API_BASE_URL}${endpoint.name}`;
+                    logComprehensive(`Testing: ${fullUrl}`, 'info');
+                    
+                    const response = await fetch(fullUrl, {
+                        method: endpoint.method,
+                        credentials: 'include',
+                        mode: 'cors'
+                    });
+                    
+                    logComprehensive(`Response received: ${response.status} ${response.statusText}`, 'info');
+                    
+                    // Special handling for /api/me - 401 is expected when not authenticated
+                    if (response.ok || (endpoint.name === '/api/me' && response.status === 401)) {
+                        addTestResult(`Connectivity: ${endpoint.name}`, 'PASSED');
+                        logComprehensive(`✅ Connectivity: ${endpoint.name} - PASSED (${response.status})`, 'success');
+                    } else {
+                        addTestResult(`Connectivity: ${endpoint.name}`, 'FAILED', `Status: ${response.status}`);
+                        logComprehensive(`❌ Connectivity: ${endpoint.name} - FAILED (${response.status})`, 'error');
+                    }
+                } catch (error) {
+                    addTestResult(`Connectivity: ${endpoint.name}`, 'FAILED', error.message);
+                    logComprehensive(`❌ Connectivity: ${endpoint.name} - FAILED: ${error.message}`, 'error');
+                    logComprehensive(`Error details: ${error.name} - ${error.stack}`, 'error');
+                }
+            }
+        }
+        
+        async function testAuthenticationFlow() {
+            logComprehensive('🔐 Testing Authentication Flow...', 'info');
+            
+            try {
+                // Test 1: Unauthenticated /api/me
+                logComprehensive('Testing /api/me without authentication...', 'info');
+                const meResponse = await fetch(`${API_BASE_URL}/api/me`, {
+                    credentials: 'include'
+                });
+                
+                const meData = await meResponse.text();
+                logComprehensive(`/api/me Response: ${meResponse.status} ${meResponse.statusText}`, 'info');
+                logComprehensive(`/api/me Body: ${meData.substring(0, 200)}...`, 'info');
+                logComprehensive(`/api/me Headers: ${JSON.stringify([...meResponse.headers.entries()])}`, 'info');
+                
+                if (meResponse.status === 401) {
+                    addTestResult('Auth: Unauthenticated /api/me', 'PASSED');
+                    logComprehensive('✅ Auth: Unauthenticated /api/me - PASSED (401)', 'success');
+                } else {
+                    addTestResult('Auth: Unauthenticated /api/me', 'FAILED', `Expected 401, got ${meResponse.status}`);
+                    logComprehensive(`❌ Auth: Unauthenticated /api/me - FAILED (${meResponse.status})`, 'error');
+                }
+                
+                // Test 2: Login endpoint exists
+                logComprehensive('Testing /api/login endpoint...', 'info');
+                const loginResponse = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'test@example.com', password: 'test' })
+                });
+                
+                const loginData = await loginResponse.text();
+                logComprehensive(`/api/login Response: ${loginResponse.status} ${loginResponse.statusText}`, 'info');
+                logComprehensive(`/api/login Body: ${loginData.substring(0, 200)}...`, 'info');
+                logComprehensive(`/api/login Headers: ${JSON.stringify([...loginResponse.headers.entries()])}`, 'info');
+                
+                if (loginResponse.status === 400 || loginResponse.status === 401) {
+                    addTestResult('Auth: Login endpoint', 'PASSED');
+                    logComprehensive('✅ Auth: Login endpoint - PASSED', 'success');
+                } else {
+                    addTestResult('Auth: Login endpoint', 'FAILED', `Unexpected status: ${loginResponse.status}`);
+                    logComprehensive(`❌ Auth: Login endpoint - FAILED (${loginResponse.status})`, 'error');
+                }
+                
+            } catch (error) {
+                addTestResult('Authentication Flow', 'FAILED', error.message);
+                logComprehensive(`❌ Authentication Flow - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testCookieSystem() {
+            logComprehensive('🍪 Testing Cookie System...', 'info');
+            
+            try {
+                // Test cookie setting
+                document.cookie = "test_cookie=test_value; path=/";
+                const hasTestCookie = document.cookie.includes('test_cookie=test_value');
+                
+                if (hasTestCookie) {
+                    addTestResult('Cookies: Setting', 'PASSED');
+                    logComprehensive('✅ Cookies: Setting - PASSED', 'success');
+                } else {
+                    addTestResult('Cookies: Setting', 'FAILED', 'Cookie not found after setting');
+                    logComprehensive('❌ Cookies: Setting - FAILED', 'error');
+                }
+                
+                // Test cookie reading
+                const cookies = document.cookie.split(';').map(c => c.trim());
+                const testCookie = cookies.find(c => c.startsWith('test_cookie='));
+                
+                if (testCookie) {
+                    addTestResult('Cookies: Reading', 'PASSED');
+                    logComprehensive('✅ Cookies: Reading - PASSED', 'success');
+                } else {
+                    addTestResult('Cookies: Reading', 'FAILED', 'Could not read cookie');
+                    logComprehensive('❌ Cookies: Reading - FAILED', 'error');
+                }
+                
+            } catch (error) {
+                addTestResult('Cookie System', 'FAILED', error.message);
+                logComprehensive(`❌ Cookie System - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testNavigationSystem() {
+            logComprehensive('🧭 Testing Navigation System...', 'info');
+            
+            const navComponents = [
+                '/components/navigation-public.html',
+                '/components/navigation-hobbyist.html',
+                '/components/navigation-professional.html',
+                '/components/navigation-admin.html',
+                '/components/smart-navigation.html'
+            ];
+            
+            for (const component of navComponents) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${component}`);
+                    if (response.ok) {
+                        addTestResult(`Navigation: ${component}`, 'PASSED');
+                        logComprehensive(`✅ Navigation: ${component} - PASSED`, 'success');
+                    } else {
+                        addTestResult(`Navigation: ${component}`, 'FAILED', `Status: ${response.status}`);
+                        logComprehensive(`❌ Navigation: ${component} - FAILED (${response.status})`, 'error');
+                    }
+                } catch (error) {
+                    addTestResult(`Navigation: ${component}`, 'FAILED', error.message);
+                    logComprehensive(`❌ Navigation: ${component} - FAILED: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        async function testWorkerHealthComprehensive() {
+            logComprehensive('⚙️ Testing Worker Health...', 'info');
+            
+            try {
+                // Test debug endpoint
+                logComprehensive('Testing /api/debug endpoint...', 'info');
+                const debugResponse = await fetch(`${API_BASE_URL}/api/debug`, {
+                    credentials: 'include'
+                });
+                
+                const debugData = await debugResponse.text();
+                logComprehensive(`/api/debug Response: ${debugResponse.status} ${debugResponse.statusText}`, 'info');
+                logComprehensive(`/api/debug Body (first 200 chars): ${debugData.substring(0, 200)}...`, 'info');
+                logComprehensive(`/api/debug Headers: ${JSON.stringify([...debugResponse.headers.entries()])}`, 'info');
+                logComprehensive(`/api/debug Content-Type: ${debugResponse.headers.get('content-type')}`, 'info');
+                
+                if (debugResponse.ok) {
+                    try {
+                        JSON.parse(debugData);
+                        addTestResult('Worker: Debug endpoint', 'PASSED');
+                        logComprehensive('✅ Worker: Debug endpoint - PASSED', 'success');
+                    } catch (parseError) {
+                        addTestResult('Worker: Debug endpoint', 'FAILED', 'Returns HTML instead of JSON');
+                        logComprehensive('❌ Worker: Debug endpoint - FAILED (HTML response)', 'error');
+                        logComprehensive(`Parse error: ${parseError.message}`, 'error');
+                        logComprehensive(`Response starts with: ${debugData.substring(0, 50)}`, 'error');
+                    }
+                } else {
+                    addTestResult('Worker: Debug endpoint', 'FAILED', `Status: ${debugResponse.status}`);
+                    logComprehensive(`❌ Worker: Debug endpoint - FAILED (${debugResponse.status})`, 'error');
+                }
+                
+            } catch (error) {
+                addTestResult('Worker Health', 'FAILED', error.message);
+                logComprehensive(`❌ Worker Health - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testNetworkPerformance() {
+            logComprehensive('⚡ Testing Network Performance...', 'info');
+            
+            try {
+                const iterations = 3;
+                const times = [];
+                
+                for (let i = 0; i < iterations; i++) {
+                    const startTime = performance.now();
+                    await fetch(`${API_BASE_URL}/api/test`, { method: 'HEAD' });
+                    const endTime = performance.now();
+                    times.push(endTime - startTime);
+                }
+                
+                const avgTime = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+                
+                if (avgTime < 1000) {
+                    addTestResult('Performance: API Response Time', 'PASSED');
+                    logComprehensive(`✅ Performance: API Response Time - PASSED (${avgTime}ms avg)`, 'success');
+                } else {
+                    addTestResult('Performance: API Response Time', 'FAILED', `Slow response: ${avgTime}ms avg`);
+                    logComprehensive(`❌ Performance: API Response Time - FAILED (${avgTime}ms avg)`, 'error');
+                }
+                
+            } catch (error) {
+                addTestResult('Network Performance', 'FAILED', error.message);
+                logComprehensive(`❌ Network Performance - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testErrorHandling() {
+            logComprehensive('🔍 Testing Error Handling...', 'info');
+            
+            try {
+                // Test invalid endpoint
+                logComprehensive('Testing invalid endpoint /api/invalid-endpoint...', 'info');
+                const invalidResponse = await fetch(`${API_BASE_URL}/api/invalid-endpoint`);
+                
+                const invalidData = await invalidResponse.text();
+                logComprehensive(`Invalid endpoint Response: ${invalidResponse.status} ${invalidResponse.statusText}`, 'info');
+                logComprehensive(`Invalid endpoint Body: ${invalidData.substring(0, 200)}...`, 'info');
+                logComprehensive(`Invalid endpoint Headers: ${JSON.stringify([...invalidResponse.headers.entries()])}`, 'info');
+                
+                if (invalidResponse.status === 404) {
+                    addTestResult('Error Handling: Invalid endpoint', 'PASSED');
+                    logComprehensive('✅ Error Handling: Invalid endpoint - PASSED (404)', 'success');
+                } else {
+                    addTestResult('Error Handling: Invalid endpoint', 'FAILED', `Expected 404, got ${invalidResponse.status}`);
+                    logComprehensive(`❌ Error Handling: Invalid endpoint - FAILED (${invalidResponse.status})`, 'error');
+                }
+                
+            } catch (error) {
+                addTestResult('Error Handling', 'FAILED', error.message);
+                logComprehensive(`❌ Error Handling - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testSecurity() {
+            logComprehensive('🔒 Testing Security...', 'info');
+            
+            try {
+                // Test HTTPS
+                if (window.location.protocol === 'https:') {
+                    addTestResult('Security: HTTPS', 'PASSED');
+                    logComprehensive('✅ Security: HTTPS - PASSED', 'success');
+                } else {
+                    addTestResult('Security: HTTPS', 'FAILED', 'Not using HTTPS');
+                    logComprehensive('❌ Security: HTTPS - FAILED', 'error');
+                }
+                
+                // Test CORS
+                try {
+                    logComprehensive('Testing CORS preflight request...', 'info');
+                    const corsResponse = await fetch(`${API_BASE_URL}/api/test`, {
+                        method: 'OPTIONS',
+                        headers: {
+                            'Origin': https://project-revelare-backend.liberatorgeminorum.workers.dev,
+                            'Access-Control-Request-Method': 'GET'
+                        }
+                    });
+                    
+                    const corsData = await corsResponse.text();
+                    logComprehensive(`CORS Response: ${corsResponse.status} ${corsResponse.statusText}`, 'info');
+                    logComprehensive(`CORS Body: ${corsData.substring(0, 200)}...`, 'info');
+                    logComprehensive(`CORS Headers: ${JSON.stringify([...corsResponse.headers.entries()])}`, 'info');
+                    
+                    if (corsResponse.ok) {
+                        addTestResult('Security: CORS', 'PASSED');
+                        logComprehensive('✅ Security: CORS - PASSED', 'success');
+                    } else {
+                        addTestResult('Security: CORS', 'FAILED', `Status: ${corsResponse.status}`);
+                        logComprehensive(`❌ Security: CORS - FAILED (${corsResponse.status})`, 'error');
+                    }
+                } catch (corsError) {
+                    addTestResult('Security: CORS', 'FAILED', corsError.message);
+                    logComprehensive(`❌ Security: CORS - FAILED: ${corsError.message}`, 'error');
+                }
+                
+            } catch (error) {
+                addTestResult('Security Tests', 'FAILED', error.message);
+                logComprehensive(`❌ Security Tests - FAILED: ${error.message}`, 'error');
+            }
+        }
+        
+        function generateFinalReport(totalTime) {
+            logComprehensive('', 'info');
+            logComprehensive('📊 COMPREHENSIVE TEST REPORT', 'info');
+            logComprehensive('============================', 'info');
+            logComprehensive(`Total Test Time: ${totalTime}ms`, 'info');
+            logComprehensive('', 'info');
+            
+            const passedTests = testResults.filter(r => r.status === 'PASSED');
+            const failedTests = testResults.filter(r => r.status === 'FAILED');
+            
+            logComprehensive(`✅ PASSED: ${passedTests.length} tests`, 'success');
+            logComprehensive(`❌ FAILED: ${failedTests.length} tests`, failedTests.length > 0 ? 'error' : 'success');
+            logComprehensive('', 'info');
+            
+            // List passed tests
+            if (passedTests.length > 0) {
+                logComprehensive('✅ PASSED TESTS:', 'success');
+                passedTests.forEach(test => {
+                    logComprehensive(`  ✓ ${test.name}`, 'success');
+                });
+                logComprehensive('', 'info');
+            }
+            
+            // List failed tests with details
+            if (failedTests.length > 0) {
+                logComprehensive('❌ FAILED TESTS:', 'error');
+                failedTests.forEach(test => {
+                    logComprehensive(`  ✗ ${test.name}`, 'error');
+                    if (test.details) {
+                        logComprehensive(`    Details: ${test.details}`, 'error');
+                    }
+                });
+                logComprehensive('', 'info');
+            }
+            
+            // Overall status
+            if (failedTests.length === 0) {
+                logComprehensive('🎉 ALL TESTS PASSED! System is working correctly.', 'success');
+            } else {
+                logComprehensive(`⚠️ ${failedTests.length} test(s) failed. See details above.`, 'error');
+            }
+            
+            logComprehensive('', 'info');
+            logComprehensive('📋 COPY THIS REPORT TO SHARE:', 'info');
+            logComprehensive('=============================', 'info');
+            
+            // Generate copyable report
+            let reportText = `COMPREHENSIVE TEST REPORT\n`;
+            reportText += `========================\n`;
+            reportText += `Test Time: ${totalTime}ms\n`;
+            reportText += `Passed: ${passedTests.length}\n`;
+            reportText += `Failed: ${failedTests.length}\n\n`;
+            
+            if (passedTests.length > 0) {
+                reportText += `PASSED TESTS:\n`;
+                passedTests.forEach(test => {
+                    reportText += `✓ ${test.name}\n`;
+                });
+                reportText += `\n`;
+            }
+            
+            if (failedTests.length > 0) {
+                reportText += `FAILED TESTS:\n`;
+                failedTests.forEach(test => {
+                    reportText += `✗ ${test.name}`;
+                    if (test.details) {
+                        reportText += ` - ${test.details}`;
+                    }
+                    reportText += `\n`;
+                });
+            }
+            
+            // Add copy button
+            const copyButton = document.createElement('button');
+            copyButton.textContent = '📋 Copy Report to Clipboard';
+            copyButton.className = 'test-button';
+            copyButton.style.marginTop = '10px';
+            copyButton.onclick = () => {
+                navigator.clipboard.writeText(reportText).then(() => {
+                    logComprehensive('📋 Report copied to clipboard!', 'success');
+                }).catch(() => {
+                    logComprehensive('❌ Failed to copy to clipboard', 'error');
+                });
+            };
+            
+            document.getElementById('comprehensive-results').appendChild(copyButton);
+        }
+
+        // Auto-run environment info on page load
+        window.addEventListener('load', () => {
+            getEnvironmentInfo();
+        });
+    </script>
+</body>
+</html>

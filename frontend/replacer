@@ -1,0 +1,35 @@
+# --- Configuration ---
+$stringToFind = 'string to find'
+$stringToReplace = 'string to replace'
+$totalReplacements = 0
+
+# --- Main Logic ---
+# Get all files recursively in the current directory
+Get-ChildItem -Recurse -File | ForEach-Object {
+    # Store the file path for easy access
+    $filePath = $_.FullName
+
+    # Read the entire file content as a single string
+    $content = Get-Content -Path $filePath -Raw
+
+    # Count how many times the string appears in the content
+    # We use [regex]::Matches().Count for an accurate count
+    $matchCount = ([regex]::Matches($content, $stringToFind)).Count
+
+    # Only proceed if we found at least one match
+    if ($matchCount -gt 0) {
+        # Add the number of matches in this file to our grand total
+        $totalReplacements += $matchCount
+        
+        # Announce what's being done
+        Write-Host "Found $matchCount match(es) in '$filePath'. Replacing now."
+
+        # Perform the replacement and write the new content back to the file
+        ($content -replace $stringToFind, $stringToReplace) | Set-Content -Path $filePath
+    }
+}
+
+# --- Final Report ---
+# Display the total number of replacements made across all files
+Write-Host "----------------------------------------"
+Write-Host "✅ Done. Total replacements made: $totalReplacements"

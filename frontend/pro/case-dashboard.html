@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Management Dashboard - Project Revelare</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+    
+    <!-- Upgrade Redirect Script -->
+    <script src="/js/upgrade-redirect.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .card {
+            background-color: #1E293B;
+            border-top: 4px solid #3B82F6;
+        }
+        .case-card {
+            background-color: #1E293B;
+            border-left: 4px solid #64748B;
+            transition: all 0.3s ease;
+        }
+        .case-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .case-card.status-completed { border-left-color: #10B981; }
+        .case-card.status-processing { border-left-color: #F59E0B; }
+        .case-card.status-pending { border-left-color: #6B7280; }
+        .status-badge {
+            padding: 0.25rem 0.75rem; 
+            border-radius: 9999px; 
+            font-size: 0.8rem; 
+            font-weight: 600;
+        }
+        .status-completed { background-color: rgba(16, 185, 129, 0.1); color: #34D399; }
+        .status-processing { background-color: rgba(245, 158, 11, 0.1); color: #FBBF24; }
+        .status-pending { background-color: rgba(107, 114, 128, 0.1); color: #9CA3AF; }
+        
+        .indicator-card {
+            background-color: #1E293B;
+            border: 1px solid #374151;
+            transition: all 0.2s ease;
+        }
+        .indicator-card:hover {
+            border-color: #3B82F6;
+            background-color: #1E293B;
+        }
+        
+        .category-header {
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #374151;
+            border-top: 3px solid #3B82F6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .modal-content {
+            background-color: #1E293B;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <!-- Navigation Container -->
+    <div id="navigation-container"></div>
+
+    <script>
+        // Smart Navigation Loader - Loads navigation based on user's highest tier
+        const API_BASE_URL = 'https://project-revelare-backend.liberatorgeminorum.workers.dev';
+
+        async function loadSmartNavigation() {
+            try {
+                // Try to get user info - cookies will be sent automatically
+                const response = await fetch(`${API_BASE_URL}/api/me`, {
+                    credentials: 'include' // This ensures cookies are sent
+                });
+
+                if (!response.ok) {
+                    // Not authenticated - load public navigation
+                    await loadNavigationComponent('/components/navigation-public.html');
+                    return;
+                }
+
+                const userData = await response.json();
+                
+                // Determine navigation based on user's highest tier
+                if (userData.isAdmin) {
+                    await loadNavigationComponent('/components/navigation-admin.html');
+                } else if (userData.accessTier === 'enterprise') {
+                    await loadNavigationComponent('/components/navigation-enterprise.html');
+                } else if (userData.accessTier === 'professional') {
+                    await loadNavigationComponent('/components/navigation-professional.html');
+                } else {
+                    // Hobbyist or any other authenticated user
+                    await loadNavigationComponent('/components/navigation-hobbyist.html');
+                }
+                
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+                // Fallback to public navigation
+                await loadNavigationComponent('/components/navigation-public.html');
+            }
+        }
+
+        async function loadNavigationComponent(path) {
+            try {
+                const response = await fetch(path);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${path}: ${response.status}`);
+                }
+                const html = await response.text();
+                const container = document.getElementById('navigation-container');
+                if (container) {
+                    container.innerHTML = html;
+                    
+                    // Extract and execute any script tags from the loaded HTML
+                    const scripts = container.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const newScript = document.createElement('script');
+                        if (script.src) {
+                            newScript.src = script.src;
+                        } else {
+                            newScript.textContent = script.textContent;
+                        }
+                        document.head.appendChild(newScript);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load navigation component:', error);
+                // Ultimate fallback - create a basic navigation
+                const container = document.getElementById('navigation-container');
+                if (container) {
+                    container.innerHTML = `
+                        <header class="bg-gray-900 border-b border-gray-700 fixed top-0 left-0 right-0 z-50">
+                            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                <div class="flex items-center justify-between h-16">
+                                    <a href="/index.html" class="text-xl font-bold text-white flex items-center gap-2">
+                                        <i class="fas fa-search"></i> Project Revelare
+                                    </a>
+                                    <div class="flex items-center gap-4">
+                                        <a href="/login.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                                        <a href="/register.html" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">Register</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+                        <div class="pt-20"></div>
+                    `;
+                }
+            }
+        }
+
+        // Initialize smart navigation when DOM loads
+        document.addEventListener('DOMContentLoaded', loadSmartNavigation);
+    </script>
+
+    <main class="pt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">Case Management Dashboard</h1>
+                <p class="text-gray-400">Manage your investigations and explore extracted indicators</p>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card p-6 rounded-lg mb-8">
+                <h2 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-bolt text-yellow-500"></i> Quick Actions
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="showCreateCaseModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-md transition">
+                        <i class="fas fa-plus"></i> Create New Case
+                    </button>
+                    <button onclick="refreshCases()" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-md transition">
+                        <i class="fas fa-sync-alt"></i> Refresh Cases
+                    </button>
+                    <button onclick="showUploadModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-md transition">
+                        <i class="fas fa-upload"></i> Upload Evidence
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cases List -->
+            <div class="card p-6 rounded-lg mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-white">
+                        <i class="fas fa-folder-open text-blue-500"></i> Your Cases
+                    </h2>
+                    <div id="casesLoading" class="loading-spinner hidden"></div>
+                </div>
+                <div id="casesList" class="space-y-4">
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading cases...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Exploration -->
+            <div id="dataExploration" class="card p-6 rounded-lg hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-white">
+                        <i class="fas fa-search text-green-500"></i> Data Exploration
+                    </h2>
+                    <button onclick="hideDataExploration()" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="findingsContent">
+                    <!-- Findings will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Case Modal -->
+    <div id="createCaseModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-white">Create New Case</h3>
+                <button onclick="hideCreateCaseModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="createCaseForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Case Name</label>
+                    <input type="text" id="caseName" class="w-full bg-gray-700 text-white px-3 py-2 rounded-md border border-gray-600" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
+                    <textarea id="caseDescription" class="w-full bg-gray-700 text-white px-3 py-2 rounded-md border border-gray-600" rows="3"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideCreateCaseModal()" class="px-4 py-2 text-gray-400 hover:text-white">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                        Create Case
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Evidence Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-white">Upload Evidence</h3>
+                <button onclick="hideUploadModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="uploadForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Select Case</label>
+                    <select id="uploadCaseSelect" class="w-full bg-gray-700 text-white px-3 py-2 rounded-md border border-gray-600" required>
+                        <option value="">Choose a case...</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Evidence Files</label>
+                    <input type="file" id="evidenceFiles" multiple class="w-full bg-gray-700 text-white px-3 py-2 rounded-md border border-gray-600" required>
+                    <p class="text-sm text-gray-400 mt-1">Supported formats: .txt, .log, .csv, .json, .xml, .html, .md, .pdf, .docx, .xlsx, .zip, .eml</p>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideUploadModal()" class="px-4 py-2 text-gray-400 hover:text-white">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                        Upload Files
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        
+        let currentCases = [];
+        let currentCase = null;
+
+        // Load cases after navigation is ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            setTimeout(loadCases, 1000);
+        });
+
+        // Case Management Functions
+        async function loadCases() {
+            try {
+                document.getElementById('casesLoading').classList.remove('hidden');
+                
+                const authToken = localStorage.getItem('authToken');
+                const response = await fetch(`${API_BASE_URL}/api/cases`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentCases = data.cases || [];
+                    displayCases(currentCases);
+                } else {
+                    throw new Error('Failed to load cases');
+                }
+            } catch (error) {
+                console.error('Error loading cases:', error);
+                document.getElementById('casesList').innerHTML = `
+                    <div class="text-center text-red-400 py-8">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <p>Failed to load cases. Please try again.</p>
+                    </div>
+                `;
+            } finally {
+                document.getElementById('casesLoading').classList.add('hidden');
+            }
+        }
+
+        function displayCases(cases) {
+            const container = document.getElementById('casesList');
+            
+            if (cases.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-folder-open text-2xl mb-2"></i>
+                        <p>No cases found. Create your first case to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = cases.map(case => `
+                <div class="case-card status-${case.status} p-6 rounded-lg">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-white">${case.name}</h3>
+                            <p class="text-sm text-gray-400">Created: ${new Date(case.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span class="status-badge status-${case.status}">${case.status}</span>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-400">${case.files.length} files</p>
+                                <p class="text-sm text-gray-400">${Object.keys(case.findings).length - 1} indicator categories</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            ${case.files.map(file => `
+                                <span class="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded">
+                                    <i class="fas fa-file mr-1"></i>${file.name}
+                                </span>
+                            `).join('')}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="exploreCase('${case.id}')" class="text-blue-400 hover:text-blue-300 text-sm">
+                                <i class="fas fa-search mr-1"></i>Explore
+                            </button>
+                            <button onclick="viewCaseDetails('${case.id}')" class="text-green-400 hover:text-green-300 text-sm">
+                                <i class="fas fa-eye mr-1"></i>Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function exploreCase(caseId) {
+            try {
+                const authToken = localStorage.getItem('authToken');
+                const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}/findings`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentCase = { id: caseId, ...data };
+                    displayFindings(data.findings);
+                    document.getElementById('dataExploration').classList.remove('hidden');
+                } else {
+                    throw new Error('Failed to load findings');
+                }
+            } catch (error) {
+                console.error('Error exploring case:', error);
+                alert('Failed to load case findings');
+            }
+        }
+
+        function displayFindings(findings) {
+            const container = document.getElementById('findingsContent');
+            
+            // Remove Processing_Summary from display
+            const displayFindings = { ...findings };
+            delete displayFindings.Processing_Summary;
+            
+            if (Object.keys(displayFindings).length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-search text-2xl mb-2"></i>
+                        <p>No indicators found in this case.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Object.entries(displayFindings).map(([category, indicators]) => `
+                <div class="mb-6">
+                    <div class="category-header">
+                        <h3 class="text-lg font-semibold">${category}</h3>
+                        <p class="text-sm opacity-90">${Object.keys(indicators).length} indicators found</p>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-b-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            ${Object.entries(indicators).map(([indicator, context]) => `
+                                <div class="indicator-card p-3 rounded">
+                                    <div class="font-mono text-sm text-blue-300 mb-1">${indicator}</div>
+                                    <div class="text-xs text-gray-400">${context}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function hideDataExploration() {
+            document.getElementById('dataExploration').classList.add('hidden');
+            currentCase = null;
+        }
+
+        // Modal Functions
+        function showCreateCaseModal() {
+            document.getElementById('createCaseModal').style.display = 'block';
+        }
+
+        function hideCreateCaseModal() {
+            document.getElementById('createCaseModal').style.display = 'none';
+            document.getElementById('createCaseForm').reset();
+        }
+
+        function showUploadModal() {
+            // Populate case select
+            const select = document.getElementById('uploadCaseSelect');
+            select.innerHTML = '<option value="">Choose a case...</option>';
+            currentCases.forEach(case => {
+                const option = document.createElement('option');
+                option.value = case.id;
+                option.textContent = case.name;
+                select.appendChild(option);
+            });
+            
+            document.getElementById('uploadModal').style.display = 'block';
+        }
+
+        function hideUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('uploadForm').reset();
+        }
+
+        // Form Handlers
+        document.getElementById('createCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const authToken = localStorage.getItem('authToken');
+                const formData = {
+                    caseName: document.getElementById('caseName').value,
+                    description: document.getElementById('caseDescription').value
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/api/cases`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    hideCreateCaseModal();
+                    loadCases();
+                } else {
+                    throw new Error('Failed to create case');
+                }
+            } catch (error) {
+                console.error('Error creating case:', error);
+                alert('Failed to create case');
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const authToken = localStorage.getItem('authToken');
+                const caseId = document.getElementById('uploadCaseSelect').value;
+                const files = document.getElementById('evidenceFiles').files;
+                
+                if (files.length === 0) {
+                    alert('Please select at least one file');
+                    return;
+                }
+                
+                const formData = new FormData();
+                for (let file of files) {
+                    formData.append('files', file);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/cases/${caseId}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    hideUploadModal();
+                    loadCases();
+                    alert('Files uploaded successfully! Processing started.');
+                } else {
+                    throw new Error('Failed to upload files');
+                }
+            } catch (error) {
+                console.error('Error uploading files:', error);
+                alert('Failed to upload files');
+            }
+        });
+
+        function refreshCases() {
+            loadCases();
+        }
+
+        function viewCaseDetails(caseId) {
+            // Find the case
+            const case = currentCases.find(c => c.id === caseId);
+            if (case) {
+                alert(`Case: ${case.name}\nStatus: ${case.status}\nFiles: ${case.files.length}\nCreated: ${new Date(case.createdAt).toLocaleDateString()}`);
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createCaseModal');
+            const uploadModal = document.getElementById('uploadModal');
+            
+            if (event.target === createModal) {
+                hideCreateCaseModal();
+            }
+            if (event.target === uploadModal) {
+                hideUploadModal();
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Dashboard - Project Revelare</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+
+    <!-- Smart Navigation Component -->
+    <div id="navigation-container"></div>
+
+    <!-- Smart Navigation Loader -->
+    <script>
+    // Define API_BASE_URL globally if not already defined
+    if (typeof window.API_BASE_URL === 'undefined') {
+        window.API_BASE_URL = 'https://project-revelare-backend.liberatorgeminorum.workers.dev';
+    }
+    const API_BASE_URL = window.API_BASE_URL;
+
+    // Smart Navigation Loader - Loads navigation based on user's highest tier
+
+    async function loadSmartNavigation() {
+        try {
+            // Try to get user info - cookies will be sent automatically
+            const response = await fetch(`${API_BASE_URL}/api/me`, {
+                credentials: 'include' // This ensures cookies are sent
+            });
+
+            if (!response.ok) {
+                // Not authenticated - load public navigation
+                await loadNavigationComponent('/components/navigation-public.html');
+                return;
+            }
+
+            const userData = await response.json();
+
+            // Determine navigation based on user's highest tier
+            if (userData.isAdmin) {
+                await loadNavigationComponent('/components/navigation-admin.html');
+            } else if (userData.accessTier === 'enterprise') {
+                await loadNavigationComponent('/components/navigation-enterprise.html');
+            } else if (userData.accessTier === 'professional') {
+                await loadNavigationComponent('/components/navigation-professional.html');
+            } else {
+                // Hobbyist or any other authenticated user
+                await loadNavigationComponent('/components/navigation-hobbyist.html');
+            }
+
+        } catch (error) {
+            console.error('Failed to load user data:', error);
+            // Fallback to public navigation
+            await loadNavigationComponent('/components/navigation-public.html');
+        }
+    }
+
+    async function loadNavigationComponent(path) {
+        try {
+            const response = await fetch(path);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch ${path}: ${response.status}`);
+            }
+            const html = await response.text();
+            const container = document.getElementById('navigation-container');
+            if (container) {
+                container.innerHTML = html;
+
+                // Extract and execute any script tags from the loaded HTML
+                const scripts = container.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    if (script.src) {
+                        newScript.src = script.src;
+                    } else {
+                        newScript.textContent = script.textContent;
+                    }
+                    document.head.appendChild(newScript);
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load navigation component:', error);
+            // Ultimate fallback - create a basic navigation
+            const container = document.getElementById('navigation-container');
+            if (container) {
+                container.innerHTML = `
+                    <header class="bg-gray-900 border-b border-gray-700 fixed top-0 left-0 right-0 z-50">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div class="flex items-center justify-between h-16">
+                                <a href="/index.html" class="text-xl font-bold text-white flex items-center gap-2">
+                                    <i class="fas fa-search"></i> Project Revelare
+                                </a>
+                                <div class="flex items-center gap-4">
+                                    <a href="/login.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                                    <a href="/register.html" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">Register</a>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+                    <div class="pt-20"></div>
+                `;
+            }
+        }
+    }
+
+    // Initialize smart navigation when DOM loads
+    document.addEventListener('DOMContentLoaded', loadSmartNavigation);
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .card {
+            background-color: #1E293B;
+            border-top: 4px solid #3B82F6;
+        }
+        .security-card {
+            background-color: #1E293B;
+            border-left: 4px solid #10B981;
+            transition: all 0.3s ease;
+        }
+        .security-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .threat-high {
+            background-color: #7F1D1D;
+            border-left-color: #EF4444;
+        }
+        .threat-medium {
+            background-color: #78350F;
+            border-left-color: #F59E0B;
+        }
+        .threat-low {
+            background-color: #1E3A8A;
+            border-left-color: #3B82F6;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #1E293B, #334155);
+            border: 1px solid #475569;
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        .loading-spinner {
+            border: 3px solid #374151;
+            border-top: 3px solid #10B981;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-green { background-color: #10B981; }
+        .status-yellow { background-color: #F59E0B; }
+        .status-red { background-color: #EF4444; }
+        .status-gray { background-color: #6B7280; }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <!-- Main Content -->
+    <main class="pt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">Security Dashboard</h1>
+                <p class="text-gray-400">Comprehensive security monitoring and fractal encryption management</p>
+            </div>
+
+            <!-- Security Metrics Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="metric-card p-6 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Total Files</p>
+                            <p class="text-2xl font-bold text-white" id="totalFiles">0</p>
+                        </div>
+                        <i class="fas fa-file-alt text-blue-400 text-2xl"></i>
+                    </div>
+                </div>
+                
+                <div class="metric-card p-6 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Encrypted Files</p>
+                            <p class="text-2xl font-bold text-green-400" id="encryptedFiles">0</p>
+                        </div>
+                        <i class="fas fa-lock text-green-400 text-2xl"></i>
+                    </div>
+                </div>
+                
+                <div class="metric-card p-6 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Security Score</p>
+                            <p class="text-2xl font-bold text-yellow-400" id="securityScore">0</p>
+                        </div>
+                        <i class="fas fa-shield-alt text-yellow-400 text-2xl"></i>
+                    </div>
+                </div>
+                
+                <div class="metric-card p-6 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-400">Active Keys</p>
+                            <p class="text-2xl font-bold text-purple-400" id="activeKeys">0</p>
+                        </div>
+                        <i class="fas fa-key text-purple-400 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Security Status -->
+                <div class="security-card p-6 rounded-lg">
+                    <h2 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-shield-check text-green-500"></i> Security Status
+                    </h2>
+                    <div id="securityStatus" class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div class="flex items-center">
+                                <span class="status-indicator status-green"></span>
+                                <span class="text-gray-300">Fractal Encryption</span>
+                            </div>
+                            <span class="text-green-400 text-sm">Active</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div class="flex items-center">
+                                <span class="status-indicator status-green"></span>
+                                <span class="text-gray-300">Multi-Layer Security</span>
+                            </div>
+                            <span class="text-green-400 text-sm">Enabled</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div class="flex items-center">
+                                <span class="status-indicator status-yellow"></span>
+                                <span class="text-gray-300">Key Rotation</span>
+                            </div>
+                            <span class="text-yellow-400 text-sm">Due Soon</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div class="flex items-center">
+                                <span class="status-indicator status-green"></span>
+                                <span class="text-gray-300">Threat Detection</span>
+                            </div>
+                            <span class="text-green-400 text-sm">Monitoring</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Encryption Analytics -->
+                <div class="security-card p-6 rounded-lg">
+                    <h2 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-chart-line text-blue-500"></i> Encryption Analytics
+                    </h2>
+                    <div class="mb-4">
+                        <canvas id="encryptionChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-blue-400" id="encryptionRate">0%</div>
+                            <div class="text-gray-400">Encryption Rate</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-green-400" id="avgSecurityLevel">0</div>
+                            <div class="text-gray-400">Avg Security Level</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Security Events -->
+            <div class="security-card p-6 rounded-lg mt-8">
+                <h2 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-history text-purple-500"></i> Recent Security Events
+                </h2>
+                <div id="securityEvents" class="space-y-3">
+                    <!-- Events will be populated here -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div class="security-card p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-white mb-4">
+                        <i class="fas fa-lock text-blue-500"></i> Encryption Actions
+                    </h3>
+                    <div class="space-y-3">
+                        <button onclick="bulkEncryptAll()" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
+                            <i class="fas fa-shield-alt mr-2"></i>Encrypt All Files
+                        </button>
+                        <button onclick="rotateKeys()" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
+                            <i class="fas fa-sync mr-2"></i>Rotate Keys
+                        </button>
+                        <button onclick="securityAudit()" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
+                            <i class="fas fa-search mr-2"></i>Run Security Audit
+                        </button>
+                    </div>
+                </div>
+
+                <div class="security-card p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-white mb-4">
+                        <i class="fas fa-cog text-purple-500"></i> Security Settings
+                    </h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Auto-Encryption</label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="autoEncrypt" class="mr-2" checked>
+                                <span class="text-gray-300">Enable automatic encryption</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Key Rotation</label>
+                            <select id="keyRotationInterval" class="w-full bg-gray-800 text-white px-3 py-2 rounded-md border border-gray-600">
+                                <option value="30">30 days</option>
+                                <option value="60">60 days</option>
+                                <option value="90">90 days</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Security Level</label>
+                            <select id="globalSecurityLevel" class="w-full bg-gray-800 text-white px-3 py-2 rounded-md border border-gray-600">
+                                <option value="standard">Standard</option>
+                                <option value="high">High</option>
+                                <option value="maximum">Maximum</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="security-card p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold text-white mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-500"></i> Threat Alerts
+                    </h3>
+                    <div id="threatAlerts" class="space-y-2">
+                        <div class="p-3 bg-red-900/20 border border-red-500/30 rounded">
+                            <div class="flex items-center justify-between">
+                                <span class="text-red-400 text-sm">Unencrypted files detected</span>
+                                <span class="text-xs text-gray-400">2 min ago</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-yellow-900/20 border border-yellow-500/30 rounded">
+                            <div class="flex items-center justify-between">
+                                <span class="text-yellow-400 text-sm">Key rotation due</span>
+                                <span class="text-xs text-gray-400">1 hour ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'https://project-revelare-backend.liberatorgeminorum.workers.dev';
+        
+        let encryptionChart = null;
+        let securityData = {
+            totalFiles: 0,
+            encryptedFiles: 0,
+            securityScore: 0,
+            activeKeys: 0
+        };
+
+        // Initialize dashboard when DOM loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Wait for navigation to load, then initialize dashboard
+                setTimeout(async () => {
+                    await loadSecurityData();
+                    initializeChart();
+                    loadSecurityEvents();
+
+                    // Setup event listeners
+                    setupEventListeners();
+                }, 200);
+            } catch (error) {
+                console.error('Failed to initialize dashboard:', error);
+            }
+        });
+
+        async function loadSecurityData() {
+            try {
+                const token = localStorage.getItem('authToken');
+                if (!token) return;
+
+                const response = await fetch(`${API_BASE_URL}/api/security/status`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    securityData = data.status;
+                    updateMetrics();
+                }
+            } catch (error) {
+                console.error('Error loading security data:', error);
+            }
+        }
+
+        function updateMetrics() {
+            document.getElementById('totalFiles').textContent = securityData.totalFiles;
+            document.getElementById('encryptedFiles').textContent = securityData.encryptedFiles;
+            document.getElementById('securityScore').textContent = securityData.securityScore;
+            document.getElementById('activeKeys').textContent = securityData.activeKeys;
+            
+            // Update encryption rate
+            const encryptionRate = securityData.totalFiles > 0 ? 
+                Math.round((securityData.encryptedFiles / securityData.totalFiles) * 100) : 0;
+            document.getElementById('encryptionRate').textContent = `${encryptionRate}%`;
+            
+            // Update average security level
+            document.getElementById('avgSecurityLevel').textContent = 
+                securityData.securityLevel === 'maximum' ? '4' : 
+                securityData.securityLevel === 'high' ? '3' : '2';
+        }
+
+        function initializeChart() {
+            const ctx = document.getElementById('encryptionChart').getContext('2d');
+            encryptionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Encrypted', 'Unencrypted'],
+                    datasets: [{
+                        data: [securityData.encryptedFiles, securityData.totalFiles - securityData.encryptedFiles],
+                        backgroundColor: ['#10B981', '#EF4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#F8FAFC'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadSecurityEvents() {
+            const events = [
+                {
+                    type: 'encryption',
+                    message: 'File encrypted with fractal encryption',
+                    timestamp: '2 minutes ago',
+                    status: 'success'
+                },
+                {
+                    type: 'audit',
+                    message: 'Security audit completed',
+                    timestamp: '1 hour ago',
+                    status: 'success'
+                },
+                {
+                    type: 'key_rotation',
+                    message: 'Encryption keys rotated',
+                    timestamp: '3 hours ago',
+                    status: 'success'
+                },
+                {
+                    type: 'threat',
+                    message: 'Potential threat detected',
+                    timestamp: '5 hours ago',
+                    status: 'warning'
+                }
+            ];
+
+            const eventsContainer = document.getElementById('securityEvents');
+            eventsContainer.innerHTML = events.map(event => `
+                <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                    <div class="flex items-center">
+                        <i class="fas fa-${getEventIcon(event.type)} text-${getEventColor(event.status)} mr-3"></i>
+                        <span class="text-gray-300">${event.message}</span>
+                    </div>
+                    <span class="text-xs text-gray-400">${event.timestamp}</span>
+                </div>
+            `).join('');
+        }
+
+        function getEventIcon(type) {
+            const icons = {
+                encryption: 'lock',
+                audit: 'search',
+                key_rotation: 'sync',
+                threat: 'exclamation-triangle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        function getEventColor(status) {
+            const colors = {
+                success: 'green-400',
+                warning: 'yellow-400',
+                error: 'red-400'
+            };
+            return colors[status] || 'gray-400';
+        }
+
+        function setupEventListeners() {
+            document.getElementById('autoEncrypt').addEventListener('change', function() {
+                console.log('Auto-encryption:', this.checked);
+            });
+            
+            document.getElementById('keyRotationInterval').addEventListener('change', function() {
+                console.log('Key rotation interval:', this.value);
+            });
+            
+            document.getElementById('globalSecurityLevel').addEventListener('change', function() {
+                console.log('Security level:', this.value);
+            });
+        }
+
+        async function bulkEncryptAll() {
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`${API_BASE_URL}/api/security/bulk-encrypt`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    alert('Bulk encryption started successfully!');
+                    await loadSecurityData();
+                } else {
+                    throw new Error('Bulk encryption failed');
+                }
+            } catch (error) {
+                console.error('Bulk encryption error:', error);
+                alert('Bulk encryption failed: ' + error.message);
+            }
+        }
+
+        async function rotateKeys() {
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`${API_BASE_URL}/api/security/rotate-keys`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Key rotation completed! Generated ${result.newKeys} new keys.`);
+                    await loadSecurityData();
+                } else {
+                    throw new Error('Key rotation failed');
+                }
+            } catch (error) {
+                console.error('Key rotation error:', error);
+                alert('Key rotation failed: ' + error.message);
+            }
+        }
+
+        async function securityAudit() {
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`${API_BASE_URL}/api/security/audit`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const audit = await response.json();
+                    alert(`Security audit completed! Score: ${audit.audit.securityScore}/100`);
+                    await loadSecurityData();
+                } else {
+                    throw new Error('Security audit failed');
+                }
+            } catch (error) {
+                console.error('Security audit error:', error);
+                alert('Security audit failed: ' + error.message);
+            }
+        }
+
+        // Auto-refresh data every 30 seconds
+        setInterval(loadSecurityData, 30000);
+    </script>
+</body>
+</html>
+

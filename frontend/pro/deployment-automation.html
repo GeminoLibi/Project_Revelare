@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Automation - Project Revelare</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3891410174900441"
+         crossorigin="anonymous"></script>
+    
+    <!-- Upgrade Redirect Script -->
+    <script src="/js/upgrade-redirect.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .card {
+            background-color: #1E293B;
+            border-top: 4px solid #3B82F6;
+        }
+        .deployment-card {
+            background-color: #1E293B;
+            border-left: 4px solid #8B5CF6;
+            position: relative;
+        }
+        .enterprise-badge {
+            position: absolute;
+            top: -8px;
+            right: 16px;
+            background: linear-gradient(45deg, #8B5CF6, #A855F7);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .deployment-step {
+            background-color: #374151;
+            border-left: 4px solid #10B981;
+            transition: all 0.3s ease;
+        }
+        .deployment-step:hover {
+            background-color: #4B5563;
+        }
+        .deployment-step.executing {
+            background-color: #1F2937;
+            border-left-color: #F59E0B;
+        }
+        .deployment-step.completed {
+            background-color: #1F2937;
+            border-left-color: #10B981;
+        }
+        .deployment-step.failed {
+            background-color: #1F2937;
+            border-left-color: #EF4444;
+        }
+        .loading-spinner {
+            border: 3px solid #374151;
+            border-top: 3px solid #8B5CF6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .terminal-output {
+            background-color: #111827;
+            border: 1px solid #374151;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .tool-category {
+            background-color: #374151;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .tool-item {
+            background-color: #1F2937;
+            border-radius: 0.25rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <!-- Navigation Container -->
+    <div id="navigation-container"></div>
+
+    <main class="pt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">Deployment Automation</h1>
+                <p class="text-gray-400">Automated environment setup and deployment management inspired by Install-it-All</p>
+                <div class="mt-2">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-900 text-purple-200">
+                        <i class="fas fa-crown mr-2"></i>
+                        Enterprise Tier Feature
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Environment Setup -->
+                <div class="deployment-card p-6 rounded-lg">
+                    <div class="enterprise-badge">ENTERPRISE</div>
+                    <h2 class="text-xl font-semibold text-white mb-4">
+                        <i class="fas fa-server text-purple-500"></i> Environment Setup
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Target Environment</label>
+                            <select id="targetEnvironment" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="">Select environment...</option>
+                                <option value="development">Development</option>
+                                <option value="staging">Staging</option>
+                                <option value="production">Production</option>
+                                <option value="cloudflare">Cloudflare Workers</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Deployment Type</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="radio" name="deploymentType" value="full" class="mr-2" checked>
+                                    <span class="text-gray-300">Full Stack Deployment</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="deploymentType" value="backend" class="mr-2">
+                                    <span class="text-gray-300">Backend Only</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="deploymentType" value="frontend" class="mr-2">
+                                    <span class="text-gray-300">Frontend Only</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button id="setupBtn" onclick="setupEnvironment()" 
+                                    class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-cogs mr-2"></i>
+                                Setup Environment
+                            </button>
+                            <button id="deployBtn" onclick="deployApplication()" 
+                                    class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fas fa-rocket mr-2"></i>
+                                Deploy
+                            </button>
+                        </div>
+                        
+                        <div id="loadingIndicator" class="hidden text-center">
+                            <div class="loading-spinner mx-auto mb-2"></div>
+                            <p class="text-gray-400">Setting up environment...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deployment Progress -->
+                <div class="space-y-6">
+                    <!-- Deployment Steps -->
+                    <div class="deployment-card p-6 rounded-lg">
+                        <div class="enterprise-badge">ENTERPRISE</div>
+                        <h3 class="text-lg font-semibold text-white mb-4">
+                            <i class="fas fa-list-ol text-green-500"></i> Deployment Steps
+                        </h3>
+                        <div id="deploymentSteps" class="hidden">
+                            <!-- Steps will be populated here -->
+                        </div>
+                        <div id="noSteps" class="text-center text-gray-400 py-8">
+                            <i class="fas fa-clipboard-list text-4xl mb-4"></i>
+                            <p>Setup environment to see deployment steps</p>
+                        </div>
+                    </div>
+
+                    <!-- Deployment Log -->
+                    <div class="deployment-card p-6 rounded-lg">
+                        <div class="enterprise-badge">ENTERPRISE</div>
+                        <h3 class="text-lg font-semibold text-white mb-4">
+                            <i class="fas fa-terminal text-blue-500"></i> Deployment Log
+                        </h3>
+                        <div id="deploymentLog" class="terminal-output p-4 text-green-400">
+                            <div class="text-gray-500">Waiting for deployment to start...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tool Installation Management -->
+            <div class="deployment-card p-6 rounded-lg mt-8">
+                <div class="enterprise-badge">ENTERPRISE</div>
+                <h2 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-tools text-blue-500"></i> Tool Installation Management
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Development Tools -->
+                    <div class="tool-category">
+                        <h3 class="font-semibold text-white mb-3">
+                            <i class="fas fa-code text-blue-400"></i> Development Tools
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="tool-item">
+                                <span class="text-gray-300">Node.js</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('nodejs')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Python</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('python')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Git</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('git')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">VS Code</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('vscode')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Tools -->
+                    <div class="tool-category">
+                        <h3 class="font-semibold text-white mb-3">
+                            <i class="fas fa-shield-alt text-red-400"></i> Security Tools
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="tool-item">
+                                <span class="text-gray-300">Nmap</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('nmap')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Wireshark</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('wireshark')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Burp Suite</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('burp')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">OWASP ZAP</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('zap')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Database Tools -->
+                    <div class="tool-category">
+                        <h3 class="font-semibold text-white mb-3">
+                            <i class="fas fa-database text-green-400"></i> Database Tools
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="tool-item">
+                                <span class="text-gray-300">PostgreSQL</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('postgresql')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">MongoDB</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('mongodb')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Redis</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('redis')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Docker</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('docker')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cloud Tools -->
+                    <div class="tool-category">
+                        <h3 class="font-semibold text-white mb-3">
+                            <i class="fas fa-cloud text-yellow-400"></i> Cloud Tools
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="tool-item">
+                                <span class="text-gray-300">AWS CLI</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('aws')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Azure CLI</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('azure')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Google Cloud</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('gcloud')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                            <div class="tool-item">
+                                <span class="text-gray-300">Cloudflare CLI</span>
+                                <button class="text-green-400 hover:text-green-300" onclick="installTool('cloudflare')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deployment Templates -->
+            <div class="deployment-card p-6 rounded-lg mt-8">
+                <div class="enterprise-badge">ENTERPRISE</div>
+                <h2 class="text-xl font-semibold text-white mb-4">
+                    <i class="fas fa-layer-group text-purple-500"></i> Deployment Templates
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <h4 class="font-semibold text-white mb-2">
+                            <i class="fas fa-rocket text-blue-400"></i> Quick Deploy
+                        </h4>
+                        <p class="text-sm text-gray-400 mb-3">Deploy Project Revelare with default settings</p>
+                        <button onclick="useTemplate('quick')" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
+                            Use Template
+                        </button>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <h4 class="font-semibold text-white mb-2">
+                            <i class="fas fa-shield-alt text-green-400"></i> Secure Deploy
+                        </h4>
+                        <p class="text-sm text-gray-400 mb-3">Deploy with enhanced security and encryption</p>
+                        <button onclick="useTemplate('secure')" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
+                            Use Template
+                        </button>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <h4 class="font-semibold text-white mb-2">
+                            <i class="fas fa-cogs text-purple-400"></i> Custom Deploy
+                        </h4>
+                        <p class="text-sm text-gray-400 mb-3">Create custom deployment configuration</p>
+                        <button onclick="useTemplate('custom')" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
+                            Use Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Smart navigation will be loaded dynamically -->
+    
+    <script>
+        let currentDeploymentPlan = null;
+
+        async function setupEnvironment() {
+            const environment = document.getElementById('targetEnvironment').value;
+            const deploymentType = document.querySelector('input[name="deploymentType"]:checked').value;
+
+            if (!environment) {
+                alert('Please select a target environment');
+                return;
+            }
+
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('Please log in to setup environments');
+                return;
+            }
+
+            try {
+                document.getElementById('loadingIndicator').classList.remove('hidden');
+                document.getElementById('setupBtn').disabled = true;
+
+                // Simulate environment setup
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                const mockPlan = generateDeploymentPlan(environment, deploymentType);
+                currentDeploymentPlan = mockPlan;
+
+                displayDeploymentSteps(mockPlan);
+                document.getElementById('deployBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Environment setup error:', error);
+                alert('Failed to setup environment: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                document.getElementById('setupBtn').disabled = false;
+            }
+        }
+
+        function generateDeploymentPlan(environment, deploymentType) {
+            const steps = [];
+            
+            // Common setup steps
+            steps.push({
+                id: 1,
+                action: 'environment_check',
+                description: `Checking ${environment} environment requirements`,
+                parameters: { environment }
+            });
+            
+            steps.push({
+                id: 2,
+                action: 'dependencies',
+                description: 'Installing required dependencies',
+                parameters: { packages: ['node', 'python', 'git'] }
+            });
+
+            if (deploymentType === 'full' || deploymentType === 'backend') {
+                steps.push({
+                    id: 3,
+                    action: 'backend_deploy',
+                    description: 'Deploying backend services',
+                    parameters: { services: ['worker', 'database', 'storage'] }
+                });
+            }
+
+            if (deploymentType === 'full' || deploymentType === 'frontend') {
+                steps.push({
+                    id: 4,
+                    action: 'frontend_deploy',
+                    description: 'Deploying frontend application',
+                    parameters: { platform: 'cloudflare-pages' }
+                });
+            }
+
+            steps.push({
+                id: 5,
+                action: 'security_setup',
+                description: 'Configuring security settings',
+                parameters: { features: ['encryption', 'authentication', 'monitoring'] }
+            });
+
+            steps.push({
+                id: 6,
+                action: 'verification',
+                description: 'Verifying deployment',
+                parameters: { tests: ['health', 'security', 'performance'] }
+            });
+
+            return {
+                environment,
+                deploymentType,
+                steps,
+                estimatedDuration: steps.length * 2 + ' minutes'
+            };
+        }
+
+        function displayDeploymentSteps(plan) {
+            document.getElementById('noSteps').classList.add('hidden');
+            document.getElementById('deploymentSteps').classList.remove('hidden');
+            
+            const stepsDiv = document.getElementById('deploymentSteps');
+            stepsDiv.innerHTML = `
+                <div class="mb-4 p-4 bg-gray-800 rounded-lg">
+                    <h4 class="font-semibold text-white mb-2">Environment: ${plan.environment}</h4>
+                    <p class="text-sm text-gray-400">Type: ${plan.deploymentType} | Duration: ${plan.estimatedDuration}</p>
+                </div>
+                <div class="space-y-2">
+                    ${plan.steps.map(step => `
+                        <div class="deployment-step p-3 rounded-lg" data-step-id="${step.id}">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <span class="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center text-xs font-semibold mr-3">${step.id}</span>
+                                    <div>
+                                        <div class="font-medium text-white">${step.description}</div>
+                                        <div class="text-sm text-gray-400">${step.action}</div>
+                                    </div>
+                                </div>
+                                <div class="step-status text-gray-500">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function deployApplication() {
+            if (!currentDeploymentPlan) {
+                alert('Please setup environment first');
+                return;
+            }
+
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('Please log in to deploy applications');
+                return;
+            }
+
+            try {
+                document.getElementById('deployBtn').disabled = true;
+                const logDiv = document.getElementById('deploymentLog');
+                
+                // Clear previous log
+                logDiv.innerHTML = '<div class="text-gray-500">Starting deployment...</div>';
+                
+                // Execute each step
+                for (const step of currentDeploymentPlan.steps) {
+                    const stepElement = document.querySelector(`[data-step-id="${step.id}"]`);
+                    const statusElement = stepElement.querySelector('.step-status');
+                    
+                    // Mark step as executing
+                    stepElement.classList.add('executing');
+                    statusElement.innerHTML = '<div class="loading-spinner w-4 h-4"></div>';
+                    
+                    // Log step start
+                    logDeployment(logDiv, `Starting step ${step.id}: ${step.description}`);
+                    
+                    // Simulate step execution
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Mark step as completed
+                    stepElement.classList.remove('executing');
+                    stepElement.classList.add('completed');
+                    statusElement.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+                    
+                    // Log step completion
+                    logDeployment(logDiv, `Completed step ${step.id}: ${step.description}`, 'success');
+                }
+                
+                logDeployment(logDiv, 'Deployment completed successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Deployment error:', error);
+                logDeployment(document.getElementById('deploymentLog'), 'Deployment failed: ' + error.message, 'error');
+            } finally {
+                document.getElementById('deployBtn').disabled = false;
+            }
+        }
+
+        function logDeployment(logDiv, message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `mb-1 ${colorClass}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function installTool(toolName) {
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch('/api/deployment/install-tool', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tool: toolName })
+                });
+
+                if (response.ok) {
+                    alert(`${toolName} installation started successfully!`);
+                } else {
+                    throw new Error('Tool installation failed');
+                }
+            } catch (error) {
+                console.error('Tool installation error:', error);
+                alert('Tool installation failed: ' + error.message);
+            }
+        }
+
+        function useTemplate(templateType) {
+            const templates = {
+                quick: {
+                    environment: 'cloudflare',
+                    deploymentType: 'full',
+                    securityLevel: 'standard'
+                },
+                secure: {
+                    environment: 'cloudflare',
+                    deploymentType: 'full',
+                    securityLevel: 'maximum'
+                },
+                custom: {
+                    environment: '',
+                    deploymentType: 'full',
+                    securityLevel: 'high'
+                }
+            };
+
+            const template = templates[templateType];
+            
+            if (templateType === 'custom') {
+                // Open custom configuration modal
+                alert('Custom template configuration would open here');
+            } else {
+                // Apply template settings
+                document.getElementById('targetEnvironment').value = template.environment;
+                document.querySelector(`input[name="deploymentType"][value="${template.deploymentType}"]`).checked = true;
+                alert(`Applied ${templateType} template settings`);
+            }
+        }
+    </script>
+</body>
+</html>
+

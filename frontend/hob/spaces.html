@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Investigation Spaces - Project Revelare</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Smart navigation will be loaded dynamically -->
+    <script src="/js/auth-check.js" defer></script>
+    
+    <!-- Load Navigation Component -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/components/navigation-hobbyist.html');
+                const html = await response.text();
+                document.getElementById('navigation-container').innerHTML = html;
+                
+                // Load navigation JavaScript after component is loaded
+                const script = document.createElement('script');
+                script.src = '/js/navigation.js';
+                document.head.appendChild(script);
+            } catch (error) {
+                console.error('Failed to load navigation:', error);
+            }
+        });
+    </script>
+    <style>
+        :root {
+            --primary: #1E3A8A;
+            --secondary: #3B82F6;
+            --accent: #10B981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #0ea5e9;
+            --bg-light: #F8FAFC;
+            --bg-dark: #0F172A;
+            --text-light: #1F2937;
+            --text-dark: #F8FAFC;
+            --text-muted: #64748B;
+            --border: #e2e8f0;
+            --font-heading: 'Orbitron', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        html[data-theme="dark"] {
+            --primary: #3B82F6;
+            --secondary: #60A5FA;
+            --bg-light: #0F172A;
+            --bg-dark: #1E293B;
+            --text-light: #F8FAFC;
+            --text-dark: #1F2937;
+            --text-muted: #94A3B8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        h1, h2, h3, h4 {
+            font-family: var(--font-heading);
+        }
+
+        .navbar {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+        }
+        html[data-theme="dark"] .card {
+            background-color: var(--bg-dark);
+        }
+
+        .space-card {
+            border-left: 4px solid var(--secondary);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .space-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .permission-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .permission-owner { background-color: #fef2f2; color: #dc2626; }
+        .permission-admin { background-color: #fef3c7; color: #d97706; }
+        .permission-member { background-color: #ecfdf5; color: #059669; }
+        .permission-viewer { background-color: #eff6ff; color: #2563eb; }
+
+        html[data-theme="dark"] .permission-owner { background-color: #7f1d1d; color: #fca5a5; }
+        html[data-theme="dark"] .permission-admin { background-color: #7c2d12; color: #fdba74; }
+        html[data-theme="dark"] .permission-member { background-color: #064e3b; color: #6ee7b7; }
+        html[data-theme="dark"] .permission-viewer { background-color: #1e3a8a; color: #93c5fd; }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-active { background-color: #10B981; }
+        .status-pending { background-color: #F59E0B; }
+        .status-archived { background-color: #6B7280; }
+
+        .network-level {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .level-local { background-color: #EFF6FF; color: #2563EB; }
+        .level-regional { background-color: #ECFDF5; color: #059669; }
+        .level-national { background-color: #FEF3C7; color: #D97706; }
+        .level-global { background-color: #FEF2F2; color: #DC2626; }
+
+        html[data-theme="dark"] .level-local { background-color: #1E3A8A; color: #93C5FD; }
+        html[data-theme="dark"] .level-regional { background-color: #064E3B; color: #6EE7B7; }
+        html[data-theme="dark"] .level-national { background-color: #7C2D12; color: #FDBA74; }
+        html[data-theme="dark"] .level-global { background-color: #7F1D1D; color: #FCA5A5; }
+    </style>
+</head>
+<body data-theme="dark" class="antialiased">
+
+    <!-- Include Standard Navigation -->
+    <div id="navigation-container"></div>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="relative bg-gray-900 text-white pt-32 pb-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h1 class="text-5xl font-black mb-6">Shared Investigation Spaces</h1>
+                    <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                        Collaborate on investigations with modular groups that aggregate into larger networks. 
+                        Share evidence, coordinate analysis, and build comprehensive cases together.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Navigation Tabs -->
+        <section class="py-8 bg-gray-800 dark:bg-gray-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-wrap gap-4 justify-center">
+                    <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition space-tab active" data-tab="my-spaces">
+                        <i class="fas fa-folder mr-2"></i>My Spaces
+                    </button>
+                    <button class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-300 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition space-tab" data-tab="networks">
+                        <i class="fas fa-project-diagram mr-2"></i>Networks
+                    </button>
+                    <button class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-300 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition space-tab" data-tab="collaborations">
+                        <i class="fas fa-users mr-2"></i>Collaborations
+                    </button>
+                    <button class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-300 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition space-tab" data-tab="create">
+                        <i class="fas fa-plus mr-2"></i>Create Space
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <section class="py-16 bg-gray-900 dark:bg-gray-900">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <!-- Main Content -->
+                    <div class="lg:col-span-3">
+                        <!-- My Spaces Tab -->
+                        <div id="my-spaces-tab" class="space-tab-content">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-2xl font-bold">My Investigation Spaces</h2>
+                                <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                    <i class="fas fa-plus mr-2"></i>New Space
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Empty State -->
+                                <div class="col-span-full text-center py-12">
+                                    <div class="w-16 h-16 bg-gray-700 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i class="fas fa-folder-open text-gray-400 text-2xl"></i>
+                                    </div>
+                                    <h3 class="text-lg font-semibold text-gray-400 dark:text-gray-300 mb-2">No Investigation Spaces Yet</h3>
+                                    <p class="text-gray-500 dark:text-gray-400 mb-6">Create your first investigation space to start collaborating with other investigators.</p>
+                                    <button class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                        <i class="fas fa-plus mr-2"></i>Create Your First Space
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Networks Tab -->
+                        <div id="networks-tab" class="space-tab-content hidden">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-2xl font-bold">Investigation Networks</h2>
+                                <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                    <i class="fas fa-plus mr-2"></i>Join Network
+                                </button>
+                            </div>
+
+                            <div class="space-y-6">
+                                <!-- Network 1 -->
+                                <div class="card space-card p-6">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-globe text-blue-600 dark:text-blue-400 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <h3 class="text-xl font-semibold">Global Cyber Defense Network</h3>
+                                                <span class="network-level level-global">Global</span>
+                                            </div>
+                                            <p class="text-gray-400 dark:text-gray-300 mb-4">
+                                                International collaboration network for sharing threat intelligence and 
+                                                coordinating responses to global cyber threats. Connects 15 regional networks.
+                                            </p>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-6">
+                                                    <span class="text-sm text-gray-500">2,847 members</span>
+                                                    <span class="text-sm text-gray-500">15 regional networks</span>
+                                                    <span class="text-sm text-gray-500">Active since 2020</span>
+                                                </div>
+                                                <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                                    Request Access
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Network 2 -->
+                                <div class="card space-card p-6">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-university text-green-600 dark:text-green-400 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <h3 class="text-xl font-semibold">Academic Research Consortium</h3>
+                                                <span class="network-level level-national">National</span>
+                                            </div>
+                                            <p class="text-gray-400 dark:text-gray-300 mb-4">
+                                                University research network focused on advancing cybersecurity methodologies. 
+                                                Connects 8 major research institutions.
+                                            </p>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-6">
+                                                    <span class="text-sm text-gray-500">234 members</span>
+                                                    <span class="text-sm text-gray-500">8 institutions</span>
+                                                    <span class="text-sm text-gray-500">Active since 2019</span>
+                                                </div>
+                                                <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                                    Request Access
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Network 3 -->
+                                <div class="card space-card p-6">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-shield-alt text-red-600 dark:text-red-400 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <h3 class="text-xl font-semibold">Critical Infrastructure Protection</h3>
+                                                <span class="network-level level-regional">Regional</span>
+                                            </div>
+                                            <p class="text-gray-400 dark:text-gray-300 mb-4">
+                                                Regional network focused on protecting critical infrastructure from cyber threats. 
+                                                Connects 12 local security teams.
+                                            </p>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-6">
+                                                    <span class="text-sm text-gray-500">156 members</span>
+                                                    <span class="text-sm text-gray-500">12 local teams</span>
+                                                    <span class="text-sm text-gray-500">Active since 2021</span>
+                                                </div>
+                                                <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                                    Request Access
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Collaborations Tab -->
+                        <div id="collaborations-tab" class="space-tab-content hidden">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-2xl font-bold">Active Collaborations</h2>
+                                <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                    <i class="fas fa-plus mr-2"></i>Start Collaboration
+                                </button>
+                            </div>
+
+                            <div class="space-y-6">
+                                <!-- Collaboration 1 -->
+                                <div class="card space-card p-6">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-handshake text-blue-600 dark:text-blue-400 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <h3 class="text-xl font-semibold">Cross-Agency Ransomware Investigation</h3>
+                                                <span class="status-indicator status-active"></span>
+                                            </div>
+                                            <p class="text-gray-400 dark:text-gray-300 mb-4">
+                                                Joint investigation between FBI Cyber Division, CISA, and private sector 
+                                                partners into coordinated ransomware attacks.
+                                            </p>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-6">
+                                                    <span class="text-sm text-gray-500">23 participants</span>
+                                                    <span class="text-sm text-gray-500">Started 2 weeks ago</span>
+                                                    <span class="text-sm text-gray-500">High priority</span>
+                                                </div>
+                                                <div class="flex space-x-2">
+                                                    <button class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-300 dark:text-gray-300 text-sm rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                                                        View Details
+                                                    </button>
+                                                    <button class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-gray-600 transition">
+                                                        Contribute
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Collaboration 2 -->
+                                <div class="card space-card p-6">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-microscope text-green-600 dark:text-green-400 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <h3 class="text-xl font-semibold">Malware Analysis Research</h3>
+                                                <span class="status-indicator status-active"></span>
+                                            </div>
+                                            <p class="text-gray-400 dark:text-gray-300 mb-4">
+                                                Academic-industry collaboration on advanced malware analysis techniques 
+                                                and automated detection systems.
+                                            </p>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-6">
+                                                    <span class="text-sm text-gray-500">18 participants</span>
+                                                    <span class="text-sm text-gray-500">Started 1 month ago</span>
+                                                    <span class="text-sm text-gray-500">Research focus</span>
+                                                </div>
+                                                <div class="flex space-x-2">
+                                                    <button class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-300 dark:text-gray-300 text-sm rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                                                        View Details
+                                                    </button>
+                                                    <button class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-gray-600 transition">
+                                                        Contribute
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Create Space Tab -->
+                        <div id="create-tab" class="space-tab-content hidden">
+                            <div class="max-w-2xl mx-auto">
+                                <h2 class="text-2xl font-bold mb-6">Create New Investigation Space</h2>
+                                
+                                <div class="card p-8">
+                                    <form class="space-y-6">
+                                        <div>
+                                            <label for="space-name" class="block text-sm font-medium text-gray-300 dark:text-gray-300 mb-2">Space Name</label>
+                                            <input type="text" id="space-name" name="space-name" required
+                                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                   placeholder="e.g., Operation Nightfall">
+                                        </div>
+
+                                        <div>
+                                            <label for="space-description" class="block text-sm font-medium text-gray-300 dark:text-gray-300 mb-2">Description</label>
+                                            <textarea id="space-description" name="space-description" rows="4" required
+                                                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                      placeholder="Describe the investigation focus and objectives..."></textarea>
+                                        </div>
+
+                                        <div>
+                                            <label for="space-type" class="block text-sm font-medium text-gray-300 dark:text-gray-300 mb-2">Space Type</label>
+                                            <select id="space-type" name="space-type" required
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="">Select type...</option>
+                                                <option value="investigation">Active Investigation</option>
+                                                <option value="research">Research Project</option>
+                                                <option value="training">Training Exercise</option>
+                                                <option value="archive">Case Archive</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label for="network-level" class="block text-sm font-medium text-gray-300 dark:text-gray-300 mb-2">Network Level</label>
+                                            <select id="network-level" name="network-level" required
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="">Select level...</option>
+                                                <option value="local">Local</option>
+                                                <option value="regional">Regional</option>
+                                                <option value="national">National</option>
+                                                <option value="global">Global</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label for="privacy-level" class="block text-sm font-medium text-gray-300 dark:text-gray-300 mb-2">Privacy Level</label>
+                                            <select id="privacy-level" name="privacy-level" required
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="">Select privacy...</option>
+                                                <option value="private">Private - Restricted access</option>
+                                                <option value="invite">Invite Only - Requires invitation</option>
+                                                <option value="public">Public - Anyone can join</option>
+                                                <option value="classified">Classified - Security clearance required</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="flex items-center">
+                                            <input type="checkbox" id="auto-archive" name="auto-archive" class="mr-2">
+                                            <label for="auto-archive" class="text-sm text-gray-300 dark:text-gray-300">
+                                                Auto-archive after 90 days of inactivity
+                                            </label>
+                                        </div>
+
+                                        <div class="flex justify-end space-x-4">
+                                            <button type="button" class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-300 dark:text-gray-300 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-700 transition">
+                                                Cancel
+                                            </button>
+                                            <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                                Create Space
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="lg:col-span-1">
+                        <!-- Quick Actions -->
+                        <div class="card p-6 mb-8">
+                            <h3 class="text-xl font-semibold mb-4 flex items-center">
+                                <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                                Quick Actions
+                            </h3>
+                            <div class="space-y-3">
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition">
+                                    <i class="fas fa-plus mr-2 text-blue-500"></i>Create New Space
+                                </button>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition">
+                                    <i class="fas fa-search mr-2 text-green-500"></i>Find Collaborators
+                                </button>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition">
+                                    <i class="fas fa-users mr-2 text-purple-500"></i>Join Network
+                                </button>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition">
+                                    <i class="fas fa-share mr-2 text-orange-500"></i>Share Evidence
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Network Stats -->
+                        <div class="card p-6 mb-8">
+                            <h3 class="text-xl font-semibold mb-4 flex items-center">
+                                <i class="fas fa-chart-network text-blue-500 mr-2"></i>
+                                Network Statistics
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-sm">Total Spaces</span>
+                                    <span class="font-semibold">47</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm">Active Collaborations</span>
+                                    <span class="font-semibold">12</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm">Network Connections</span>
+                                    <span class="font-semibold">8</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm">Shared Evidence Files</span>
+                                    <span class="font-semibold">1,247</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-semibold mb-4 flex items-center">
+                                <i class="fas fa-history text-purple-500 mr-2"></i>
+                                Recent Activity
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="text-sm">
+                                    <span class="font-medium">Sarah Chen</span> shared evidence in <span class="text-blue-500">Operation Nightfall</span>
+                                    <div class="text-gray-500">2 hours ago</div>
+                                </div>
+                                <div class="text-sm">
+                                    <span class="font-medium">Mike Rodriguez</span> joined <span class="text-blue-500">Ransomware Task Force</span>
+                                    <div class="text-gray-500">4 hours ago</div>
+                                </div>
+                                <div class="text-sm">
+                                    <span class="font-medium">Alex Thompson</span> created <span class="text-blue-500">Forensics Research Lab</span>
+                                    <div class="text-gray-500">1 day ago</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="py-16 bg-gray-600">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 class="text-3xl font-bold text-white mb-4">Start Collaborating Today</h2>
+                <p class="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+                    Join investigation spaces, connect with networks, and collaborate on cases. 
+                    Build stronger investigations through shared knowledge and resources.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/register.html" class="px-8 py-3 bg-gray-900 text-blue-600 font-semibold rounded-lg hover:bg-gray-700 transition">
+                        Get Started
+                    </a>
+                    <a href="/index.html#features" class="px-8 py-3 border-2 border-white text-white font-semibold rounded-lg hover:bg-gray-900 hover:text-blue-600 transition">
+                        Learn More
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="py-8 bg-gray-900">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400">
+            <div class="mb-4">
+                <p class="text-lg font-semibold text-white mb-2">Want to run Project Revelare locally?</p>
+                <a href="https://github.com/GeminoLibi/Project_Revelare/" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                    <i class="fab fa-github"></i>
+                    View on GitHub
+                </a>
+            </div>
+            <p>&copy; 2025 Project Revelare. All rights reserved.</p>
+        </div>
+    </footer>
+    
+    <script>
+        function toggleMobileMenu() {
+            const mobileMenu = document.getElementById('mobileMenu');
+            mobileMenu.classList.toggle('hidden');
+        }
+        
+
+        // Space tab functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.space-tab');
+            const tabContents = document.querySelectorAll('.space-tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+                    
+                    // Update active tab button
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('bg-blue-500', 'text-white');
+                        btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-300', 'dark:text-gray-300');
+                    });
+                    this.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-300', 'dark:text-gray-300');
+                    this.classList.add('bg-blue-500', 'text-white');
+
+                    // Show target tab content
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(targetTab + '-tab').classList.remove('hidden');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
