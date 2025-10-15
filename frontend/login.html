@@ -193,7 +193,7 @@
                 console.log('🌐 Protocol:', window.location.protocol);
                 console.log('🔒 Is HTTPS:', window.location.protocol === 'https:');
                 
-                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data),
