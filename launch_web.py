@@ -2,7 +2,9 @@ import sys
 import os
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the project root directory to Python path
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
 
 def main():
     print("Project Revelare - Web Interface Launcher")
