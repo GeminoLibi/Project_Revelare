@@ -144,6 +144,12 @@ class CaseManager:
         try:
             case_path = os.path.join(Config.UPLOAD_FOLDER, case_name)
             if not os.path.exists(case_path):
+                case_logger.warning(f"Case directory does not exist: {case_path}")
+                return None
+            
+            # Check if it's actually a directory
+            if not os.path.isdir(case_path):
+                case_logger.warning(f"Case path is not a directory: {case_path}")
                 return None
 
             def format_file_size(size_bytes):
@@ -157,29 +163,71 @@ class CaseManager:
                 return f"{size_bytes:.2f} {size_names[i]}" if i > 0 else f"{int(size_bytes)} {size_names[i]}"
 
             def build_tree(path: str, name: str) -> Dict[str, Any]:
-                if os.path.isfile(path):
-                    size = os.path.getsize(path)
+                try:
+                    if os.path.isfile(path):
+                        size = os.path.getsize(path)
+                        return {
+                            "name": name, "type": "file", "size": size,
+                            "formatted_size": format_file_size(size),
+                            "modified": datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
+                        }
+                    else:
+                        children = []
+                        try:
+                            for item in sorted(os.listdir(path)):
+                                item_path = os.path.join(path, item)
+                                # Skip if path is too long for Windows (260 char limit)
+                                if len(item_path) > 250:
+                                    children.append({
+                                        "name": f"{item} (path too long - skipped)",
+                                        "type": "file",
+                                        "size": 0,
+                                        "formatted_size": "0 B",
+                                        "modified": "unknown"
+                                    })
+                                    continue
+                                children.append(build_tree(item_path, item))
+                        except (PermissionError, OSError) as e:
+                            # Handle permission errors and path too long errors
+                            if "path too long" in str(e).lower() or "cannot find the path" in str(e).lower():
+                                children.append({
+                                    "name": f"Directory (path too long - skipped)",
+                                    "type": "file",
+                                    "size": 0,
+                                    "formatted_size": "0 B",
+                                    "modified": "unknown"
+                                })
+                            else:
+                                pass  # Other permission errors are silently ignored
+                        return {
+                            "name": name, "type": "directory", "children": children,
+                            "modified": datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
+                        }
+                except (OSError, IOError) as e:
+                    # Handle any other file system errors
                     return {
-                        "name": name, "type": "file", "size": size,
-                        "formatted_size": format_file_size(size),
-                        "modified": datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
-                    }
-                else:
-                    children = []
-                    try:
-                        for item in sorted(os.listdir(path)):
-                            item_path = os.path.join(path, item)
-                            children.append(build_tree(item_path, item))
-                    except PermissionError:
-                        pass
-                    return {
-                        "name": name, "type": "directory", "children": children,
-                        "modified": datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
+                        "name": f"{name} (error: {str(e)[:50]}...)",
+                        "type": "file",
+                        "size": 0,
+                        "formatted_size": "0 B",
+                        "modified": "unknown"
                     }
             return build_tree(case_path, case_name)
         except Exception as e:
             case_logger.error(f"Failed to build directory tree for {case_name}: {e}")
-            return None
+            # Return a basic tree structure instead of None to prevent "Case not found" error
+            return {
+                "name": case_name,
+                "type": "directory",
+                "children": [{
+                    "name": "Error loading directory tree",
+                    "type": "file",
+                    "size": 0,
+                    "formatted_size": "0 B",
+                    "modified": "unknown"
+                }],
+                "modified": datetime.now().isoformat()
+            }
 
     def get_available_cases(self) -> List[Dict[str, Any]]:
         try:
