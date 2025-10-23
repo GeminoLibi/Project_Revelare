@@ -298,11 +298,11 @@ def email_browser():
         flash("Failed to load cases with email archives.", "error")
         return render_template('email_browser.html', cases_with_emails=[])
         
-@app.route('/inbox/<case_name>')
+@app.route('/inbox/<path:case_name>')
 def inbox(case_name):
     return render_template('inbox.html', case_name=case_name)
 
-@app.route('/api/case_emails/<case_name>')
+@app.route('/api/case_emails/<path:case_name>')
 def api_case_emails(case_name):
     try:
         from revelare.utils.mbox_viewer import EmailBrowser
@@ -439,7 +439,7 @@ def process_case_background(case_name: str, evidence_files: List[str]):
             active_threads.remove(thread_id)
         logger.info(f"Background processing thread {thread_id} finished")
 
-@app.route('/upload_evidence/<case_name>', methods=['GET', 'POST'])
+@app.route('/upload_evidence/<path:case_name>', methods=['GET', 'POST'])
 def upload_evidence(case_name):
     if request.method == 'POST':
         files = request.files.getlist('files')
@@ -469,7 +469,7 @@ def upload_evidence(case_name):
 
     return render_template('upload_evidence.html', case_name=case_name)
 
-@app.route('/add_files/<case_name>', methods=['GET', 'POST'])
+@app.route('/add_files/<path:case_name>', methods=['GET', 'POST'])
 def add_files(case_name):
     if request.method == 'POST':
         files = request.files.getlist('files')
