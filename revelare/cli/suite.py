@@ -501,9 +501,24 @@ def add_files(case_name):
 
 @app.route('/case_management/<path:case_name>')
 def case_management(case_name):
+    # Debug logging
+    logger.info(f"Case management requested for: '{case_name}'")
+    logger.info(f"Upload folder: {Config.UPLOAD_FOLDER}")
+    
+    # Check if case directory exists
+    case_path = os.path.join(Config.UPLOAD_FOLDER, case_name)
+    logger.info(f"Looking for case at: {case_path}")
+    logger.info(f"Case directory exists: {os.path.exists(case_path)}")
+    
     tree = case_manager.get_case_directory_tree(case_name)
     if tree is None:
-        flash(f"Case '{case_name}' not found", "error")
+        # List available cases for debugging
+        available_cases = []
+        if os.path.exists(Config.UPLOAD_FOLDER):
+            available_cases = [item for item in os.listdir(Config.UPLOAD_FOLDER) 
+                             if os.path.isdir(os.path.join(Config.UPLOAD_FOLDER, item))]
+        logger.error(f"Case '{case_name}' not found. Available cases: {available_cases}")
+        flash(f"Case '{case_name}' not found. Available cases: {', '.join(available_cases[:5])}", "error")
         return redirect(url_for('home'))
     notes = case_manager.get_case_notes(case_name)
     return render_template('case_management.html', case_name=case_name, tree=tree, notes=notes)
