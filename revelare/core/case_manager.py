@@ -176,16 +176,30 @@ class CaseManager:
                         try:
                             for item in sorted(os.listdir(path)):
                                 item_path = os.path.join(path, item)
-                                # Skip if path is too long for Windows (260 char limit)
+                                
+                                # Normalize long paths instead of skipping them
                                 if len(item_path) > 250:
-                                    children.append({
-                                        "name": f"{item} (path too long - skipped)",
-                                        "type": "file",
-                                        "size": 0,
-                                        "formatted_size": "0 B",
-                                        "modified": "unknown"
-                                    })
-                                    continue
+                                    from revelare.utils.file_extractor import normalize_file_path
+                                    normalized_path, original_path = normalize_file_path(item_path, case_name)
+                                    
+                                    # If normalization created a different path, rename the file
+                                    if normalized_path != original_path:
+                                        try:
+                                            os.rename(original_path, normalized_path)
+                                            logger.info(f"Normalized long path: {original_path} -> {normalized_path}")
+                                            item_path = normalized_path
+                                            item = os.path.basename(normalized_path)
+                                        except Exception as e:
+                                            logger.error(f"Failed to normalize path {original_path}: {e}")
+                                            children.append({
+                                                "name": f"{item} (path too long - normalization failed)",
+                                                "type": "file",
+                                                "size": 0,
+                                                "formatted_size": "0 B",
+                                                "modified": "unknown"
+                                            })
+                                            continue
+                                
                                 children.append(build_tree(item_path, item))
                         except (PermissionError, OSError) as e:
                             # Handle permission errors and path too long errors

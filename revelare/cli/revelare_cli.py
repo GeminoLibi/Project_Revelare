@@ -147,6 +147,7 @@ def main():
     
     parser.add_argument('--onboard', action='store_true', help='Run interactive case onboarding wizard.')
     parser.add_argument('--add-files', help='Add files to an existing case (specify case name)')
+    parser.add_argument('--enhanced', action='store_true', help='Launch enhanced CLI with full GUI functionality')
     
     args = parser.parse_args()
     
@@ -154,6 +155,17 @@ def main():
     
     print("Project Revelare CLI v2.5")
     print("=" * 50)
+
+    if args.enhanced:
+        print("\nLaunching Enhanced CLI Interface...")
+        try:
+            from revelare.cli.enhanced_cli import EnhancedCLI
+            cli = EnhancedCLI()
+            cli.run()
+        except ImportError as e:
+            print(f"Error launching enhanced CLI: {e}")
+            return 1
+        return 0
 
     if args.onboard:
         print("\n" + "="*60 + "\nProject Revelare - Case Onboarding & Creation\n" + "="*60)

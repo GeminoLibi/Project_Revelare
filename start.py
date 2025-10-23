@@ -32,10 +32,11 @@ def print_menu():
     print("=" * 50)
     print("\n  [1] Launch Web Interface")
     print("  [2] Launch Command Line Interface (CLI)")
-    print("  [3] Run Case Onboarding Wizard (Quick Start)")
-    print("  [4] Run String Search Tool")
-    print("  [5] Run Email Archive Analyzer")
-    print("  [6] Access Fractal Encryption Tool")
+    print("  [3] Launch Enhanced CLI (Full GUI Functionality)")
+    print("  [4] Run Case Onboarding Wizard (Quick Start)")
+    print("  [5] Run String Search Tool")
+    print("  [6] Run Email Archive Analyzer")
+    print("  [7] Access Fractal Encryption Tool")
     print("\n  [Q] Quit")
     print("-" * 50)
 
@@ -62,6 +63,17 @@ def launch_cli():
         subprocess.run([sys.executable, script_path])
     except Exception as e:
         print(f"\nError launching CLI: {e}")
+
+def launch_enhanced_cli():
+    print("\nLaunching Enhanced CLI Interface...")
+    script_path = get_script_path('revelare_cli.py')
+    if not script_path:
+        print("\nERROR: revelare_cli.py not found.")
+        return
+    try:
+        subprocess.run([sys.executable, script_path, '--enhanced'])
+    except Exception as e:
+        print(f"\nError launching Enhanced CLI: {e}")
 
 def run_onboarding():
     print("\nStarting Case Onboarding Wizard...")
@@ -131,12 +143,14 @@ def main():
         elif choice == '2':
             launch_cli()
         elif choice == '3':
-            run_onboarding()
+            launch_enhanced_cli()
         elif choice == '4':
-            run_string_search()
+            run_onboarding()
         elif choice == '5':
-            run_email_analyzer()
+            run_string_search()
         elif choice == '6':
+            run_email_analyzer()
+        elif choice == '7':
             access_fractal_tool()
         elif choice in ['q', 'quit', 'exit']:
             print("\nExiting Project Revelare Launcher. Goodbye!")
