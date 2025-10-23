@@ -190,6 +190,15 @@ class ArchiveFileProcessor(FileProcessor):
                         
                         from revelare.core.extractor import process_file as process_extracted_file
                         process_extracted_file(target_path, findings)
+                        
+                        # Check if extracted file is also an archive for recursive extraction
+                        if os.path.isfile(target_path):
+                            file_ext = os.path.splitext(target_path)[1].lower()
+                            if file_ext in ['.zip', '.rar', '.7z']:
+                                # Recursively process nested archives
+                                nested_findings = self.process_file(target_path, os.path.basename(target_path), depth + 1)
+                                for category, items in nested_findings.items():
+                                    findings.setdefault(category, {}).update(items)
         except Exception as e:
             self.logger.error(f"Error processing archive {file_name}: {e}")
         return findings
