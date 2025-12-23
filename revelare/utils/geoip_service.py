@@ -14,8 +14,8 @@ perf_logger = RevelareLogger.get_logger('performance')
 
 class GeoIPService:
     def __init__(self):
-        self.asn_db_path = getattr(Config, 'ASN_DB_PATH', "GeoLite2-ASN.mmdb")
-        self.city_db_path = getattr(Config, 'CITY_DB_PATH', "GeoLite2-City.mmdb")
+        self.asn_db_path = self._find_mmdb_file("GeoLite2-ASN.mmdb")
+        self.city_db_path = self._find_mmdb_file("GeoLite2-City.mmdb")
         
         self.api_url = "http://ip-api.com/json/"
         self.api_rate_limit = getattr(Config, 'IP_API_RATE_LIMIT', 0.5)
@@ -26,6 +26,36 @@ class GeoIPService:
         self.asn_reader = None
         self.city_reader = None
         self._initialize_databases()
+    
+    def _find_mmdb_file(self, filename: str) -> str:
+        """Search for MMDB files in common locations"""
+        # Check config path first if set
+        if filename == "GeoLite2-ASN.mmdb":
+            config_path = getattr(Config, 'ASN_DB_PATH', None)
+            if config_path and os.path.exists(config_path):
+                return config_path
+        elif filename == "GeoLite2-City.mmdb":
+            config_path = getattr(Config, 'CITY_DB_PATH', None)
+            if config_path and os.path.exists(config_path):
+                return config_path
+        
+        # Search common locations
+        search_paths = [
+            filename,  # Current directory
+            os.path.join(os.path.dirname(__file__), '..', '..', filename),  # Project root
+            os.path.join(os.path.dirname(__file__), '..', filename),  # Revelare utils
+            os.path.join(os.path.dirname(__file__), '..', '..', 'revelare', filename),  # Revelare package
+            os.path.join(os.getcwd(), filename),  # Working directory
+        ]
+        
+        for path in search_paths:
+            abs_path = os.path.abspath(path)
+            if os.path.exists(abs_path):
+                logger.debug(f"Found {filename} at: {abs_path}")
+                return abs_path
+        
+        # Return original filename if not found (will trigger warning)
+        return filename
         
     def _initialize_databases(self):
         try:

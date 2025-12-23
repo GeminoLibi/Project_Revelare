@@ -4,10 +4,12 @@ Flask>=2.3.0,<3.0.0
 
 # HTTP requests for external APIs
 requests>=2.28.0,<3.0.0
+py7zr>=0.20.0
 
 # Image processing and fractal generation
 Pillow>=9.0.0,<11.0.0
 numpy>=1.21.0,<2.0.0
+exifread>=3.0.0
 
 # Document processing
 pypdf>=6.0.0

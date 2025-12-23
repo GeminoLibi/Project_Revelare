@@ -82,7 +82,8 @@ def process_project(project_name: str, input_files: List[str], output_dir: str, 
     project_dir = os.path.abspath(os.path.join(output_dir, project_name))
     Path(project_dir).mkdir(parents=True, exist_ok=True)
     
-    temp_working_dir = Path(tempfile.mkdtemp(prefix=f"revelare_{project_name}_temp_"))
+    from revelare.utils.file_extractor import mkdtemp_in_script_dir
+    temp_working_dir = Path(mkdtemp_in_script_dir(prefix=f"revelare_{project_name}_temp_"))
     
     print(f"\n[START] Starting Project: {project_name}")
     
@@ -92,12 +93,26 @@ def process_project(project_name: str, input_files: List[str], output_dir: str, 
         for i, file_path in enumerate(input_files, 1):
             file_name = os.path.basename(file_path)
             temp_copy_path = temp_working_dir / file_name
+            
+            # Handle duplicate filenames
+            if temp_copy_path.exists():
+                name, ext = os.path.splitext(file_name)
+                temp_copy_path = temp_working_dir / f"{name}_{i}{ext}"
+                
             shutil.copy2(file_path, temp_copy_path)
-            if file_name.lower().endswith(('.zip', '.rar', '.7z', '.tar', '.gz')):
-                print(f"  [{i}/{len(input_files)}] Extracting: {file_name}")
+            if str(temp_copy_path).lower().endswith(('.zip', '.rar', '.7z', '.tar', '.gz')):
+                print(f"  [{i}/{len(input_files)}] Extracting: {temp_copy_path.name}")
                 file_extractor.safe_extract_archive(str(temp_copy_path), str(temp_working_dir))
             
-        all_extracted_paths = [str(p) for p in temp_working_dir.rglob('*') if p.is_file()]
+        # Collect all files, but skip archives since we've already extracted them recursively
+        # This prevents double-processing and unnecessary re-extraction attempts
+        all_extracted_paths = []
+        archive_extensions = {'.zip', '.rar', '.7z', '.tar', '.gz'}
+        for p in temp_working_dir.rglob('*'):
+            if p.is_file():
+                if p.suffix.lower() in archive_extensions:
+                    continue
+                all_extracted_paths.append(str(p))
         
         print(f"\n[EXTRACT] Running indicator extraction on {len(all_extracted_paths)} files...")
         

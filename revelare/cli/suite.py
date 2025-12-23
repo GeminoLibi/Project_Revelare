@@ -31,10 +31,17 @@ app = Flask(__name__,
             static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'web', 'static'))
 app.secret_key = Config.SECRET_KEY
 app.config['UPLOAD_FOLDER'] = Config.UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+# Remove file size limit - set to None for unlimited uploads
+app.config['MAX_CONTENT_LENGTH'] = None
 
 logger = get_logger(__name__)
 os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    logger.warning(f"File upload too large: {error}")
+    flash("File upload failed: File size exceeds server limit. Please try uploading smaller files or contact administrator.", "error")
+    return redirect(request.referrer or url_for('home')), 413
 
 @app.route('/favicon.ico')
 def favicon():
@@ -174,6 +181,25 @@ def update_master_database(project_name: str, findings: Dict[str, Dict[str, Any]
     except Exception as e:
         logger.error(f"Failed to update database: {e}")
         return False
+
+@app.route('/global_dashboard')
+def global_dashboard():
+    dashboard_path = os.path.join(Config.UPLOAD_FOLDER, 'index.html')
+    if os.path.exists(dashboard_path):
+        with open(dashboard_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    else:
+        # Try to generate it on the fly if it doesn't exist
+        try:
+            from revelare.utils.global_reporter import GlobalReporter
+            reporter = GlobalReporter(Config.UPLOAD_FOLDER)
+            reporter.generate_dashboard(dashboard_path)
+            with open(dashboard_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Failed to generate global dashboard: {e}")
+            flash("Global dashboard not yet available. Process some cases first.", "info")
+            return redirect(url_for('home'))
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
@@ -317,15 +343,25 @@ def api_case_emails(case_name):
             return jsonify({"error": "No email archives found in this case."})
         
         all_messages = []
+        errors = []
         for archive in archives:
-            analysis = browser.analyze_email_archive(archive['path'])
-            if analysis and 'messages' in analysis:
-                all_messages.extend(analysis['messages'])
+            try:
+                analysis = browser.analyze_email_archive(archive['path'])
+                if analysis and 'messages' in analysis:
+                    all_messages.extend(analysis['messages'])
+                elif analysis and 'error' in analysis:
+                    errors.append(f"{os.path.basename(archive['path'])}: {analysis['error']}")
+            except Exception as e:
+                logger.warning(f"Error analyzing archive {archive['path']}: {e}")
+                errors.append(f"{os.path.basename(archive['path'])}: {str(e)}")
         
-        return jsonify({"success": True, "emails": all_messages})
+        if not all_messages and errors:
+            return jsonify({"error": f"Failed to parse email archives. Errors: {'; '.join(errors)}"})
+        
+        return jsonify({"success": True, "emails": all_messages, "warnings": errors if errors else None})
     except Exception as e:
-        logger.error(f"Failed to fetch emails for {case_name}: {e}")
-        return jsonify({"error": "Failed to load and parse email archives."})
+        logger.error(f"Failed to fetch emails for {case_name}: {e}", exc_info=True)
+        return jsonify({"error": f"Failed to load and parse email archives: {str(e)}"})
 
 @app.route('/string_search', methods=['GET', 'POST'])
 def string_search():
@@ -442,7 +478,13 @@ def process_case_background(case_name: str, evidence_files: List[str]):
 @app.route('/upload_evidence/<path:case_name>', methods=['GET', 'POST'])
 def upload_evidence(case_name):
     if request.method == 'POST':
-        files = request.files.getlist('files')
+        try:
+            files = request.files.getlist('files')
+        except Exception as e:
+            logger.error(f"Error reading uploaded files: {e}")
+            flash(f"Error reading uploaded files. The file may be too large or corrupted. Error: {str(e)}", "error")
+            return redirect(url_for('upload_evidence', case_name=case_name))
+            
         if not files or not files[0].filename:
             flash("At least one file must be selected.", "error")
             return redirect(url_for('upload_evidence', case_name=case_name))
@@ -454,11 +496,21 @@ def upload_evidence(case_name):
 
         evidence_files = []
         for file in files:
-            safe_filename = SecurityValidator.sanitize_filename(file.filename)
-            file_path = os.path.join(case_path, 'evidence', safe_filename)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            file.save(file_path)
-            evidence_files.append(file_path)
+            try:
+                safe_filename = SecurityValidator.sanitize_filename(file.filename)
+                file_path = os.path.join(case_path, 'evidence', safe_filename)
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                # Stream large files to disk instead of loading into memory
+                file.save(file_path)
+                evidence_files.append(file_path)
+            except Exception as e:
+                logger.error(f"Error saving file {file.filename}: {e}")
+                flash(f"Error saving file {file.filename}: {str(e)}", "error")
+                continue
+
+        if not evidence_files:
+            flash("No files were successfully saved. Please check the file selections and try again.", "error")
+            return redirect(url_for('upload_evidence', case_name=case_name))
 
         thread = threading.Thread(target=process_case_background, args=(case_name, evidence_files))
         thread.daemon = True
@@ -472,8 +524,16 @@ def upload_evidence(case_name):
 @app.route('/add_files/<path:case_name>', methods=['GET', 'POST'])
 def add_files(case_name):
     if request.method == 'POST':
-        files = request.files.getlist('files')
-        if not files or not files[0].filename:
+        try:
+            files = request.files.getlist('files')
+        except Exception as e:
+            logger.error(f"Error reading uploaded files: {e}")
+            flash(f"Error reading uploaded files. The file may be too large or corrupted. Error: {str(e)}", "error")
+            return redirect(url_for('add_files', case_name=case_name))
+        
+        # Validate that files were actually selected
+        valid_files = [f for f in files if f and f.filename and f.filename.strip()]
+        if not valid_files:
             flash("At least one file must be selected", "error")
             return redirect(url_for('add_files', case_name=case_name))
 
@@ -483,12 +543,28 @@ def add_files(case_name):
             return redirect(url_for('home'))
 
         evidence_files = []
-        for file in files:
-            safe_filename = SecurityValidator.sanitize_filename(file.filename)
-            file_path = os.path.join(case_path, 'evidence', safe_filename)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            file.save(file_path)
-            evidence_files.append(file_path)
+        for file in valid_files:
+            try:
+                safe_filename = SecurityValidator.sanitize_filename(file.filename)
+                if not safe_filename:
+                    logger.warning(f"Skipping file with empty or invalid filename: {file.filename}")
+                    continue
+                    
+                file_path = os.path.join(case_path, 'evidence', safe_filename)
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Stream large files to disk instead of loading into memory
+                file.save(file_path)
+                evidence_files.append(file_path)
+                logger.info(f"Saved file: {safe_filename} to {file_path}")
+            except Exception as e:
+                logger.error(f"Error saving file {file.filename}: {e}")
+                flash(f"Error saving file {file.filename}: {str(e)}", "error")
+                continue
+
+        if not evidence_files:
+            flash("No files were successfully saved. Please check the file selections and try again.", "error")
+            return redirect(url_for('add_files', case_name=case_name))
 
         thread = threading.Thread(target=process_case_background, args=(case_name, evidence_files))
         thread.daemon = True
@@ -525,12 +601,23 @@ def case_management(case_name):
 
 @app.route('/reanalyze_case/<path:case_name>', methods=['POST'])
 def reanalyze_case(case_name):
-    success, message = case_manager.reanalyze_case(case_name)
-    if success:
-        flash(f"Re-analysis started in the background: {message}", "success")
-    else:
-        flash(f"Re-analysis failed: {message}", "error")
-    return redirect(url_for('case_management', case_name=case_name))
+    try:
+        evidence_files = case_manager.get_evidence_files_for_case(case_name)
+        if not evidence_files:
+            flash(f"No evidence files found for case '{case_name}'", "error")
+            return redirect(url_for('case_management', case_name=case_name))
+        
+        # Run reanalysis in background thread
+        thread = threading.Thread(target=process_case_background, args=(case_name, evidence_files))
+        thread.daemon = True
+        thread.start()
+        
+        flash(f"Re-analysis started in the background for '{case_name}'. This may take some time.", "success")
+        return redirect(url_for('case_management', case_name=case_name))
+    except Exception as e:
+        logger.error(f"Failed to start re-analysis for {case_name}: {e}")
+        flash(f"Failed to start re-analysis: {str(e)}", "error")
+        return redirect(url_for('case_management', case_name=case_name))
 
 @app.route('/save_case_notes/<path:case_name>', methods=['POST'])
 def save_case_notes(case_name):
@@ -603,8 +690,8 @@ def settings():
                 f.write("# API Keys\n")
                 # Only implemented APIs
                 api_keys = [
-                    'OPENAI_API_KEY', 'GOOGLE_SPEECH_API_KEY', 'IP_API_KEY', 'ABUSEIPDB_API_KEY',
-                    'VIRUSTOTAL_API_KEY', 'SHODAN_API_KEY', 'URLSCAN_API_KEY',
+                    'OPENAI_API_KEY', 'GOOGLE_SPEECH_API_KEY', 'AI_ASSISTANT_API_KEY', 'AI_ASSISTANT_PROVIDER',
+                    'IP_API_KEY', 'ABUSEIPDB_API_KEY', 'VIRUSTOTAL_API_KEY', 'SHODAN_API_KEY', 'URLSCAN_API_KEY',
                     'BITCOIN_ABUSE_API_KEY', 'CHAINABUSE_API_KEY'
                 ]
                 
@@ -687,6 +774,26 @@ def get_report_data(project_name):
                 count += 1
         if count >= 10: break
 
+    # Get list of available exports
+    exports_dir = os.path.join(project_path, 'exports')
+    available_exports = []
+    if os.path.exists(exports_dir):
+        for file in os.listdir(exports_dir):
+            if file.endswith('.zip'):
+                file_path = os.path.join(exports_dir, file)
+                try:
+                    file_size = os.path.getsize(file_path)
+                    file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                    available_exports.append({
+                        'filename': file,
+                        'size': file_size,
+                        'created': file_time.strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                except:
+                    pass
+        # Sort by creation time, newest first
+        available_exports.sort(key=lambda x: x['created'], reverse=True)
+
     return {
         'project_name': project_name,
         'generation_date': datetime.now().isoformat(),
@@ -694,7 +801,8 @@ def get_report_data(project_name):
         'files_processed': files_processed,
         'category_count': category_count,
         'top_categories': top_categories,
-        'recent_indicators': recent_indicators
+        'recent_indicators': recent_indicators,
+        'available_exports': available_exports
     }
 
 @app.route('/report/<project_name>')
@@ -704,6 +812,84 @@ def report_dashboard(project_name):
         flash(data["error"], "error")
         return redirect(url_for('home'))
     return render_template('report_dashboard.html', **data)
+
+@app.route('/export/<project_name>', methods=['POST', 'GET'])
+def export_report(project_name):
+    """Export a portable report package from existing findings without reprocessing"""
+    try:
+        success, message, export_path = case_manager.export_report_package(project_name)
+        
+        if success:
+            flash(f"Report exported successfully: {os.path.basename(export_path)}", "success")
+            # If it's a POST request, return JSON for AJAX
+            if request.method == 'POST':
+                return jsonify({
+                    "success": True,
+                    "message": message,
+                    "export_path": export_path,
+                    "filename": os.path.basename(export_path)
+                })
+            # Otherwise redirect
+            return redirect(url_for('report_dashboard', project_name=project_name))
+        else:
+            flash(message, "error")
+            if request.method == 'POST':
+                return jsonify({"success": False, "message": message}), 400
+            return redirect(url_for('report_dashboard', project_name=project_name))
+    except Exception as e:
+        error_msg = f"Export failed: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        flash(error_msg, "error")
+        if request.method == 'POST':
+            return jsonify({"success": False, "message": error_msg}), 500
+        return redirect(url_for('report_dashboard', project_name=project_name))
+
+@app.route('/clean_findings/<project_name>', methods=['POST', 'GET'])
+def clean_findings(project_name):
+    """Clean existing findings by re-validating with updated regex patterns"""
+    try:
+        success, message, stats = case_manager.clean_findings_regex(project_name)
+        
+        if success:
+            flash(f"Findings cleaned: {message}", "success")
+            if request.method == 'POST':
+                return jsonify({
+                    "success": True,
+                    "message": message,
+                    "stats": stats
+                })
+            return redirect(url_for('report_dashboard', project_name=project_name))
+        else:
+            flash(message, "error")
+            if request.method == 'POST':
+                return jsonify({"success": False, "message": message}), 400
+            return redirect(url_for('report_dashboard', project_name=project_name))
+    except Exception as e:
+        error_msg = f"Clean failed: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        flash(error_msg, "error")
+        if request.method == 'POST':
+            return jsonify({"success": False, "message": error_msg}), 500
+        return redirect(url_for('report_dashboard', project_name=project_name))
+
+@app.route('/download_export/<project_name>/<filename>')
+def download_export(project_name, filename):
+    """Download an exported report package"""
+    try:
+        project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
+        exports_dir = os.path.join(project_path, 'exports')
+        
+        if not os.path.exists(exports_dir):
+            abort(404)
+        
+        # Security: ensure filename doesn't contain path traversal
+        if '..' in filename or '/' in filename or '\\' in filename:
+            abort(400)
+        
+        return send_from_directory(exports_dir, filename, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error downloading export: {e}")
+        abort(404)
 
 @app.route('/report/<project_name>/<page>')
 def report_page(project_name, page):
@@ -716,6 +902,183 @@ def report_page(project_name, page):
         return redirect(url_for('home'))
     return render_template(f'report_{page}.html', **data)
     
+@app.route('/api/ai_assistant', methods=['POST'])
+def ai_assistant():
+    """AI Assistant endpoint for intelligent analysis"""
+    if not Config.AI_ASSISTANT_API_KEY:
+        return jsonify({"success": False, "error": "AI Assistant API key not configured. Please set AI_ASSISTANT_API_KEY in settings."})
+    
+    try:
+        data = request.get_json()
+        project_name = data.get('project_name', '')
+        user_message = data.get('message', '')
+        conversation_history = data.get('conversation_history', [])
+        
+        if not project_name or not user_message:
+            return jsonify({"success": False, "error": "Missing project_name or message"})
+        
+        # Load case data for context
+        project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
+        findings_file = os.path.join(project_path, 'raw_findings.json')
+        
+        case_summary = {}
+        if os.path.exists(findings_file):
+            with open(findings_file, 'r', encoding='utf-8') as f:
+                findings = json.load(f)
+                
+            # Create summary for AI context
+            case_summary = {
+                'total_categories': len([k for k in findings.keys() if k != 'Processing_Summary']),
+                'categories': {},
+                'file_count': findings.get('Processing_Summary', {}).get('files_processed', 0),
+                'indicator_count': findings.get('Processing_Summary', {}).get('total_indicators', 0)
+            }
+            
+            for category, items in findings.items():
+                if category != 'Processing_Summary' and isinstance(items, dict):
+                    case_summary['categories'][category] = len(items)
+        
+        # Prepare AI prompt
+        system_prompt = """You are an expert digital forensics and threat intelligence analyst assistant. 
+You help investigators analyze case data, identify patterns, and provide insights about indicators of compromise (IOCs).
+
+When analyzing data:
+- Focus on security implications and threat intelligence
+- Identify suspicious patterns and connections
+- Provide actionable recommendations
+- Be concise but thorough
+- Use technical terminology appropriately
+
+You have access to case data including indicators, file sources, and metadata."""
+        
+        # Build context from case summary
+        context = f"Case: {project_name}\n"
+        context += f"Files Processed: {case_summary.get('file_count', 0)}\n"
+        context += f"Total Indicators: {case_summary.get('indicator_count', 0)}\n"
+        context += f"Categories Found: {case_summary.get('total_categories', 0)}\n"
+        
+        if case_summary.get('categories'):
+            context += "\nIndicator Categories:\n"
+            for cat, count in list(case_summary['categories'].items())[:10]:  # Top 10
+                context += f"- {cat}: {count} indicators\n"
+        
+        # Call AI API based on provider
+        provider = getattr(Config, 'AI_ASSISTANT_PROVIDER', 'openai').lower()
+        api_key = Config.AI_ASSISTANT_API_KEY
+        
+        if provider == 'anthropic':
+            # Anthropic Claude API
+            import requests
+            url = "https://api.anthropic.com/v1/messages"
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            }
+            
+            messages = []
+            for msg in conversation_history[-5:]:  # Last 5 for context
+                messages.append({
+                    "role": msg['role'],
+                    "content": msg['content']
+                })
+            messages.append({
+                "role": "user",
+                "content": f"{context}\n\nUser Question: {user_message}"
+            })
+            
+            payload = {
+                "model": "claude-3-5-sonnet-20241022",
+                "max_tokens": 2000,
+                "system": system_prompt,
+                "messages": messages
+            }
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            ai_response = result['content'][0]['text'] if result.get('content') else "No response generated"
+            
+        elif provider == 'gemini':
+            # Google Gemini API
+            import requests
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            # Build conversation context
+            conversation_text = f"System Instructions: {system_prompt}\n\n"
+            conversation_text += f"Case Context:\n{context}\n\n"
+            
+            # Add conversation history
+            for msg in conversation_history[-5:]:  # Last 5 for context
+                role_label = "User" if msg['role'] == 'user' else "Assistant"
+                conversation_text += f"{role_label}: {msg['content']}\n\n"
+            
+            conversation_text += f"User: {user_message}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": conversation_text
+                    }]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 2000
+                }
+            }
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('candidates') and len(result['candidates']) > 0:
+                ai_response = result['candidates'][0]['content']['parts'][0]['text']
+            else:
+                ai_response = "No response generated"
+            
+        else:
+            # OpenAI API (default)
+            import requests
+            url = "https://api.openai.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in conversation_history[-5:]:  # Last 5 for context
+                messages.append({
+                    "role": msg['role'],
+                    "content": msg['content']
+                })
+            messages.append({
+                "role": "user",
+                "content": f"{context}\n\nUser Question: {user_message}"
+            })
+            
+            payload = {
+                "model": "gpt-4",
+                "messages": messages,
+                "max_tokens": 2000,
+                "temperature": 0.7
+            }
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            ai_response = result['choices'][0]['message']['content'] if result.get('choices') else "No response generated"
+        
+        return jsonify({"success": True, "response": ai_response})
+        
+    except ImportError:
+        return jsonify({"success": False, "error": "requests library required. Install with: pip install requests"})
+    except Exception as e:
+        logger.error(f"AI Assistant error: {e}")
+        return jsonify({"success": False, "error": f"AI service error: {str(e)}"})
+
 @app.route('/api/report/<project_name>/<data_type>')
 def api_report_data(project_name, data_type):
     project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
@@ -844,8 +1207,8 @@ def api_report_data(project_name, data_type):
         for category, items in findings.items():
             if category == 'Processing_Summary' or not isinstance(items, dict):
                 continue
-                for value, context in items.items():
-                    src = "Unknown"
+            for value, context in items.items():
+                src = "Unknown"
                 if 'File:' in context:
                     src = context.split('File:')[1].split('|')[0].strip()
                 entry = file_map.setdefault(src, { 'name': src, 'type': os.path.splitext(src)[1].lower().lstrip('.'), 'size': 0, 'indicators': 0, 'status': 'normal' })

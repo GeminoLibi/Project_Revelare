@@ -50,24 +50,51 @@ class EmailBrowser:
     def get_email_archives_in_case(self, case_name: str) -> List[Dict[str, Any]]:
         try:
             case_path = os.path.join(Config.UPLOAD_FOLDER, case_name)
-            evidence_dir = os.path.join(case_path, 'evidence')
-            if not os.path.exists(evidence_dir):
+            if not os.path.exists(case_path):
+                logger.warning(f"Case path does not exist: {case_path}")
                 return []
 
             email_archives = []
-            for root, dirs, files in os.walk(evidence_dir):
-                for item_name in files + dirs:
-                    item_path = os.path.join(root, item_name)
-                    email_format = self.detect_email_format(item_path)
-                    if email_format:
-                        size_bytes = os.path.getsize(item_path) if os.path.isfile(item_path) else 0
-                        email_archives.append({
-                            'path': item_path,
-                            'format': email_format,
-                            'size': size_bytes,
-                            'formatted_size': self._format_file_size(size_bytes),
-                            'relative_path': os.path.relpath(item_path, evidence_dir)
-                        })
+            directories_to_check = []
+            
+            # Check evidence directory
+            evidence_dir = os.path.join(case_path, 'evidence')
+            if os.path.exists(evidence_dir):
+                directories_to_check.append(evidence_dir)
+            
+            # Check extracted_files directory (where files from zips are stored)
+            extracted_files_dir = os.path.join(case_path, 'extracted_files')
+            if os.path.exists(extracted_files_dir):
+                directories_to_check.append(extracted_files_dir)
+            
+            # Also check the case root directory
+            if os.path.exists(case_path):
+                directories_to_check.append(case_path)
+
+            for search_dir in directories_to_check:
+                for root, dirs, files in os.walk(search_dir):
+                    for item_name in files + dirs:
+                        item_path = os.path.join(root, item_name)
+                        # Skip if already found (avoid duplicates)
+                        if any(arch['path'] == item_path for arch in email_archives):
+                            continue
+                        
+                        email_format = self.detect_email_format(item_path)
+                        if email_format:
+                            try:
+                                size_bytes = os.path.getsize(item_path) if os.path.isfile(item_path) else 0
+                                email_archives.append({
+                                    'path': item_path,
+                                    'format': email_format,
+                                    'size': size_bytes,
+                                    'formatted_size': self._format_file_size(size_bytes),
+                                    'relative_path': os.path.relpath(item_path, case_path)
+                                })
+                            except Exception as e:
+                                logger.warning(f"Error getting size for {item_path}: {e}")
+                                continue
+            
+            logger.info(f"Found {len(email_archives)} email archive(s) in case {case_name}")
             return email_archives
         except Exception as e:
             logger.error(f"Error scanning case {case_name} for email archives: {e}")

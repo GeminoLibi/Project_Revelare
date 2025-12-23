@@ -51,9 +51,19 @@ class StringSearchEngine:
         self.logger.info(f"Search completed: {len(all_results)} total matches found")
         return all_results
 
-    def _search_in_item(self, item_path: str, search_strings: List[str], context_chars: int, use_regex: bool, archive_depth: int = 0) -> List[Dict[str, Any]]:
-        if self._is_archive_file(item_path) and archive_depth < Config.MAX_ZIP_DEPTH:
-            return self._search_in_archive(item_path, search_strings, context_chars, use_regex, archive_depth)
+    def _search_in_item(self, item_path: str, search_strings: List[str], context_chars: int, use_regex: bool, archive_depth: int = 0, processed_archives: set = None) -> List[Dict[str, Any]]:
+        if processed_archives is None:
+            processed_archives = set()
+        
+        if self._is_archive_file(item_path):
+            # Normalize path to prevent infinite loops
+            normalized_path = os.path.normpath(item_path)
+            if normalized_path not in processed_archives:
+                processed_archives.add(normalized_path)
+                return self._search_in_archive(item_path, search_strings, context_chars, use_regex, archive_depth, processed_archives)
+            else:
+                self.logger.debug(f"Skipping already processed archive: {item_path}")
+                return []
         else:
             return self._search_in_file(item_path, search_strings, context_chars, use_regex, archive_depth)
 
@@ -94,9 +104,13 @@ class StringSearchEngine:
         return results
 
     def _search_in_archive(self, archive_path: str, search_strings: List[str], 
-                           context_chars: int, use_regex: bool, archive_depth: int) -> List[Dict[str, Any]]:
+                           context_chars: int, use_regex: bool, archive_depth: int, processed_archives: set = None) -> List[Dict[str, Any]]:
         results = []
-        with tempfile.TemporaryDirectory() as temp_dir:
+        if processed_archives is None:
+            processed_archives = set()
+        
+        from revelare.utils.file_extractor import TemporaryDirectory_in_script_dir
+        with TemporaryDirectory_in_script_dir(prefix="revelare_string_search_") as temp_dir:
             try:
                 with zipfile.ZipFile(archive_path, 'r') as zip_ref:
                     zip_ref.extractall(temp_dir)
@@ -104,7 +118,7 @@ class StringSearchEngine:
                 for root, _, files in os.walk(temp_dir):
                     for file in files:
                         file_path = os.path.join(root, file)
-                        file_results = self._search_in_item(file_path, search_strings, context_chars, use_regex, archive_depth + 1)
+                        file_results = self._search_in_item(file_path, search_strings, context_chars, use_regex, archive_depth + 1, processed_archives)
                         for result in file_results:
                             result['file_path'] = f"{os.path.basename(archive_path)}::{os.path.relpath(file_path, temp_dir)}"
                         results.extend(file_results)

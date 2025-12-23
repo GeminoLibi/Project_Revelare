@@ -91,22 +91,15 @@ class SecurityValidator:
             
     @staticmethod
     def validate_zip_file(zip_path: str) -> Tuple[bool, str, List[str]]:
-        max_files = getattr(Config, 'MAX_FILES_IN_ZIP', 10000)
-        max_uncompressed_size = Config.MAX_CONTENT_LENGTH * 10
-        
+        """
+        Validate ZIP file for path traversal attacks only.
+        No file count or size limits - process all nested archives as needed.
+        """
         try:
             with zipfile.ZipFile(zip_path, 'r') as zip_file:
                 file_infos = zip_file.infolist()
-                
-                if len(file_infos) > max_files:
-                    security_logger.critical(f"Zip Bomb (File Count) detected: {len(file_infos)} files.")
-                    return False, f"Too many files in archive (max {max_files})", []
-                
-                total_size = sum(info.file_size for info in file_infos)
-                if total_size > max_uncompressed_size:
-                    security_logger.critical(f"Zip Bomb (Size) detected: {total_size} bytes uncompressed.")
-                    return False, "ZIP contents too large (decompression size limit exceeded)", []
 
+                # Only check for path traversal attacks - no zip bomb protection
                 for member in file_infos:
                     target_path = os.path.join("temp_dir", member.filename)
                     if not SecurityValidator.is_safe_path(target_path, "temp_dir"):

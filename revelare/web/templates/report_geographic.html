@@ -98,4 +98,17 @@
         manager.init();
     });
 </script>
+
+<!-- AI Assistant -->
+<div id="ai-assistant-container"></div>
+<script src="{{ url_for('static', filename='js/ai_assistant.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const aiAssistant = new AIAssistant({
+            projectName: '{{ project_name }}',
+            containerId: 'ai-assistant-container'
+        });
+    });
+</script>
 {% endblock %}
+

@@ -39,6 +39,26 @@
                         </button>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="ai_assistant_api_key">AI Assistant API Key</label>
+                    <p class="help-text" style="margin-top: 0.25rem; margin-bottom: 0.5rem; font-size: 0.85rem;">For intelligent analysis assistance. Supports OpenAI (sk-...), Anthropic (sk-ant-...), or Google Gemini (AIza...) keys.</p>
+                    <div style="position: relative;">
+                        <input type="password" id="ai_assistant_api_key" name="ai_assistant_api_key"
+                               value="{{ current_settings.get('AI_ASSISTANT_API_KEY', '') }}"
+                               placeholder="sk-... or sk-ant-...">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="togglePasswordVisibility('ai_assistant_api_key')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ai_assistant_provider">AI Assistant Provider</label>
+                    <select id="ai_assistant_provider" name="ai_assistant_provider">
+                        <option value="openai" {% if current_settings.get('AI_ASSISTANT_PROVIDER', 'openai') == 'openai' %}selected{% endif %}>OpenAI (GPT-4, GPT-3.5)</option>
+                        <option value="anthropic" {% if current_settings.get('AI_ASSISTANT_PROVIDER', 'openai') == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+                        <option value="gemini" {% if current_settings.get('AI_ASSISTANT_PROVIDER', 'openai') == 'gemini' %}selected{% endif %}>Google (Gemini)</option>
+                    </select>
+                </div>
             </div>
 
             <!-- IP Geolocation & Threat Intelligence -->

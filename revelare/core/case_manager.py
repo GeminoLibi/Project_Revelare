@@ -65,17 +65,27 @@ class CaseManager:
                 case_logger.error(f"Project directory not found: {project_path}")
                 return False, f"Project directory not found: {project_path}"
 
-            extract_path = tempfile.mkdtemp(prefix=f"revelare_{project_name}_extract_")
+            from revelare.utils.file_extractor import mkdtemp_in_script_dir
+            extract_path = mkdtemp_in_script_dir(prefix=f"revelare_{project_name}_extract_")
             case_logger.info(f"Created temp directory: {extract_path}")
 
             try:
                 for evidence_file in evidence_files:
-                    if os.path.isfile(evidence_file):
+                    # Skip if file is already in extracted_files (it's already been extracted)
+                    if 'extracted_files' in evidence_file:
+                        # For reanalysis, copy extracted files directly to temp directory
+                        rel_path = os.path.relpath(evidence_file, os.path.join(Config.UPLOAD_FOLDER, project_name, 'extracted_files'))
+                        dest_path = os.path.join(extract_path, rel_path)
+                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                        shutil.copy2(evidence_file, dest_path)
+                    elif os.path.isfile(evidence_file):
+                        # Original evidence files - extract if archive, copy if regular file
                         if evidence_file.lower().endswith(('.zip', '.rar', '.7z')):
                             file_extractor.safe_extract_archive(evidence_file, extract_path)
                         else:
                             shutil.copy2(evidence_file, os.path.join(extract_path, os.path.basename(evidence_file)))
                     elif os.path.isdir(evidence_file):
+                        # Directory - copy all files recursively
                         for root, dirs, files in os.walk(evidence_file):
                             for file in files:
                                 src_path = os.path.join(root, file)
@@ -89,6 +99,13 @@ class CaseManager:
                 
                 temp_files = [str(p) for p in Path(extract_path).rglob('*') if p.is_file()]
                 case_logger.info(f"Found {len(temp_files)} files to process in temp directory")
+                
+                # Log file type breakdown for debugging
+                file_types = {}
+                for f in temp_files:
+                    ext = os.path.splitext(f)[1].lower()
+                    file_types[ext] = file_types.get(ext, 0) + 1
+                case_logger.info(f"File type breakdown: {dict(sorted(file_types.items(), key=lambda x: x[1], reverse=True)[:10])}")
                 
                 findings = run_extraction(temp_files)
                 case_logger.info(f"run_extraction completed, found {len(findings)} finding categories")
@@ -139,6 +156,174 @@ class CaseManager:
             error_msg = f"Evidence processing setup failed: {str(e)}"
             case_logger.error(error_msg)
             return False, error_msg
+
+    def clean_findings_regex(self, project_name: str) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Re-validate existing findings using updated regex patterns to remove false positives.
+        Returns: (success, message, stats)
+        """
+        try:
+            project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
+            findings_file = os.path.join(project_path, 'raw_findings.json')
+            
+            if not os.path.exists(findings_file):
+                return False, f"Findings not found for {project_name}. Process evidence first.", {}
+            
+            with open(findings_file, 'r', encoding='utf-8') as f:
+                findings = json.load(f)
+            
+            import re
+            # Config is already imported at module level, don't re-import
+            
+            # Compile all regex patterns
+            compiled_patterns = {}
+            for category, pattern in Config.REGEX_PATTERNS.items():
+                try:
+                    compiled_patterns[category] = re.compile(pattern, re.IGNORECASE)
+                except re.error as e:
+                    case_logger.warning(f"Invalid regex pattern for {category}: {e}")
+                    continue
+            
+            stats = {
+                'before': {},
+                'after': {},
+                'removed': {},
+                'total_removed': 0
+            }
+            
+            cleaned_findings = {}
+            processing_summary = findings.get('Processing_Summary', {})
+            
+            # Clean each category
+            total_categories = len([k for k in findings.keys() if k != 'Processing_Summary' and isinstance(findings.get(k), dict)])
+            category_num = 0
+            
+            for category, items in findings.items():
+                if category == 'Processing_Summary':
+                    cleaned_findings[category] = items
+                    continue
+                
+                if not isinstance(items, dict):
+                    cleaned_findings[category] = items
+                    continue
+                
+                category_num += 1
+                stats['before'][category] = len(items)
+                cleaned_items = {}
+                removed_count = 0
+                
+                # Log progress for large categories
+                if len(items) > 1000:
+                    case_logger.info(f"  Processing {category} ({len(items)} items)...")
+                
+                # Get the regex pattern for this category
+                pattern = compiled_patterns.get(category)
+                
+                # Special handling for credit cards - validate with Luhn algorithm
+                if category in ['Credit_Card_VisaMcDiscover', 'Credit_Card_Amex', 'Credit_Card_Numbers']:
+                    from revelare.utils.financial_validators import is_valid_luhn
+                    for value, context in items.items():
+                        # First check regex pattern
+                        if pattern:
+                            full_match = pattern.fullmatch(value)
+                            if not full_match:
+                                partial_match = pattern.search(value)
+                                if not partial_match or len(partial_match.group(0)) < len(value) * 0.8:
+                                    removed_count += 1
+                                    continue
+                        
+                        # Then validate with Luhn algorithm
+                        if is_valid_luhn(value):
+                            cleaned_items[value] = context
+                        else:
+                            removed_count += 1
+                    stats['after'][category] = len(cleaned_items)
+                    stats['removed'][category] = removed_count
+                    stats['total_removed'] += removed_count
+                    cleaned_findings[category] = cleaned_items
+                    continue
+                
+                for value, context in items.items():
+                    # Re-validate the value against the regex pattern
+                    if pattern:
+                        # Check if the value matches the pattern exactly (full match)
+                        full_match = pattern.fullmatch(value)
+                        if full_match:
+                            # Value matches the pattern exactly, keep it
+                            cleaned_items[value] = context
+                        else:
+                            # Check if there's a partial match (value contains the pattern)
+                            partial_match = pattern.search(value)
+                            if partial_match:
+                                matched_value = partial_match.group(0)
+                                # Only keep if the matched portion is at least 80% of the value
+                                # This handles cases where there might be minor prefix/suffix
+                                if len(matched_value) >= len(value) * 0.8:
+                                    cleaned_items[value] = context
+                                else:
+                                    # The match is too small compared to the value - likely a false positive
+                                    removed_count += 1
+                            else:
+                                # No match at all - remove it
+                                removed_count += 1
+                    else:
+                        # No pattern available, keep the item
+                        cleaned_items[value] = context
+                
+                cleaned_findings[category] = cleaned_items
+                stats['after'][category] = len(cleaned_items)
+                stats['removed'][category] = removed_count
+                stats['total_removed'] += removed_count
+                
+                # Log progress for large categories
+                if len(items) > 1000:
+                    case_logger.info(f"  Completed {category}: {len(cleaned_items)} kept, {removed_count} removed")
+            
+            # Save cleaned findings
+            with open(findings_file, 'w', encoding='utf-8') as f:
+                json.dump(cleaned_findings, f, indent=4, ensure_ascii=False)
+            
+            # Regenerate report with cleaned findings
+            try:
+                ip_addresses = [v for k in cleaned_findings if 'IPv4' in k for v in cleaned_findings[k].keys()]
+                report_generator = reporter.ReportGenerator()
+                enriched_ips = report_generator.enrich_ips(ip_addresses)
+                html_report = report_generator.generate_report(project_name, cleaned_findings, enriched_ips)
+                
+                with open(os.path.join(project_path, 'report.html'), 'w', encoding='utf-8') as f:
+                    f.write(html_report)
+            except Exception as e:
+                case_logger.warning(f"Failed to regenerate report: {e}")
+            
+            case_logger.info(f"Cleaned findings for {project_name}: removed {stats['total_removed']} false positives")
+            return True, f"Cleaned {stats['total_removed']} false positives from findings", stats
+            
+        except Exception as e:
+            error_msg = f"Failed to clean findings: {str(e)}"
+            case_logger.error(error_msg, exc_info=True)
+            return False, error_msg, {}
+
+    def export_report_package(self, project_name: str) -> Tuple[bool, str, Optional[str]]:
+        """
+        Export a portable report package from existing findings without reprocessing.
+        Returns: (success, message, export_path)
+        """
+        try:
+            project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
+            findings_file = os.path.join(project_path, 'raw_findings.json')
+            
+            if not os.path.exists(findings_file):
+                return False, f"Findings not found for {project_name}. Process evidence first.", None
+            
+            from revelare.utils.exporter import export_reader_package
+            export_path = export_reader_package(project_name)
+            case_logger.info(f"Exported portable report package: {export_path}")
+            return True, f"Report package exported successfully", export_path
+            
+        except Exception as e:
+            error_msg = f"Failed to export report package: {str(e)}"
+            case_logger.error(error_msg, exc_info=True)
+            return False, error_msg, None
 
     def get_case_directory_tree(self, case_name: str) -> Optional[Dict[str, Any]]:
         try:
@@ -286,16 +471,29 @@ class CaseManager:
             return []
 
     def get_evidence_files_for_case(self, case_name: str) -> List[str]:
+        """
+        Get all evidence files for a case, including both original evidence
+        and already-extracted files.
+        """
         try:
             case_path = os.path.join(Config.UPLOAD_FOLDER, case_name)
-            evidence_dir = os.path.join(case_path, 'evidence')
-            if not os.path.exists(evidence_dir):
-                return []
-            
             evidence_files = []
-            for root, dirs, files in os.walk(evidence_dir):
-                for file in files:
-                    evidence_files.append(os.path.join(root, file))
+            
+            # Check evidence directory (original uploaded files)
+            evidence_dir = os.path.join(case_path, 'evidence')
+            if os.path.exists(evidence_dir):
+                for root, dirs, files in os.walk(evidence_dir):
+                    for file in files:
+                        evidence_files.append(os.path.join(root, file))
+            
+            # Also check extracted_files directory (files already extracted from archives)
+            extracted_files_dir = os.path.join(case_path, 'extracted_files')
+            if os.path.exists(extracted_files_dir):
+                for root, dirs, files in os.walk(extracted_files_dir):
+                    for file in files:
+                        evidence_files.append(os.path.join(root, file))
+            
+            case_logger.info(f"Found {len(evidence_files)} total files for reanalysis (evidence: {len([f for f in evidence_files if 'evidence' in f])}, extracted: {len([f for f in evidence_files if 'extracted_files' in f])})")
             return evidence_files
         except Exception as e:
             case_logger.error(f"Failed to get evidence files for case {case_name}: {e}")

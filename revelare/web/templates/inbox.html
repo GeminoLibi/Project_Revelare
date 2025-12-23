@@ -76,26 +76,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function viewEmail(email) {
         currentEmail = email;
-        const body = email.body_html ? `<iframe></iframe>` : `<pre>${escapeHtml(email.body_plain) || '(No Content)'}</pre>`;
+        const body = email.body_html ? `<iframe sandbox="allow-same-origin" title="Email Content"></iframe>` : `<pre>${escapeHtml(email.body_plain) || '(No Content)'}</pre>`;
         
         viewerPanelEl.innerHTML = `
-            <div style="padding: 2rem;">
-                <h2 style="font-size: 1.75rem; margin-bottom: 1rem;">${escapeHtml(email.subject) || '(No Subject)'}</h2>
-                <div style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem;">
-                    <p><strong>From:</strong> ${escapeHtml(email.from) || 'Unknown'}</p>
-                    <p><strong>To:</strong> ${escapeHtml(email.to) || 'Unknown'}</p>
-                    <p><strong>Date:</strong> ${formatDate(email.date)}</p>
+            <div style="display: flex; flex-direction: column; height: 100%;">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); background-color: #fff;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <h2 style="font-size: 1.5rem; margin: 0 0 1rem 0; color: var(--text);">${escapeHtml(email.subject) || '(No Subject)'}</h2>
+                        <span style="font-size: 0.85rem; color: var(--text-muted); background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${formatDate(email.date)}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-size: 0.9rem;">
+                        <strong style="color: var(--text-muted);">From:</strong> <span>${escapeHtml(email.from) || 'Unknown'}</span>
+                        <strong style="color: var(--text-muted);">To:</strong> <span>${escapeHtml(email.to) || 'Unknown'}</span>
+                        ${email.cc ? `<strong style="color: var(--text-muted);">Cc:</strong> <span>${escapeHtml(email.cc)}</span>` : ''}
+                    </div>
+                    <div style="margin-top: 1rem; display: flex; gap: 10px;">
+                        <button class="btn btn-sm btn-outline" onclick="alert('Analysis features coming soon')"><i class="fas fa-search"></i> Analyze Entities</button>
+                        <button class="btn btn-sm btn-outline" onclick="alert('Export features coming soon')"><i class="fas fa-download"></i> Export EML</button>
+                    </div>
                 </div>
-                <div>${body}</div>
+                <div style="flex: 1; overflow: auto; background-color: #fff; padding: 0;">
+                    ${email.body_html ? '<div class="iframe-container" style="height: 100%; width: 100%;"></div>' : `<div style="padding: 1.5rem;">${body}</div>`}
+                </div>
             </div>
         `;
 
         if (email.body_html) {
-            const iframe = viewerPanelEl.querySelector('iframe');
+            const container = viewerPanelEl.querySelector('.iframe-container');
+            const iframe = document.createElement('iframe');
             iframe.style.width = '100%';
-            iframe.style.height = '60vh';
-            iframe.style.border = '1px solid var(--border)';
-            iframe.srcdoc = email.body_html;
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.sandbox = 'allow-same-origin';
+            container.appendChild(iframe);
+            
+            // Write content safely
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(email.body_html);
+            doc.close();
+            
+            // Inject styles for better reading inside iframe if needed
+            const style = doc.createElement('style');
+            style.textContent = 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 1rem; margin: 0; } img { max-width: 100%; }';
+            doc.head.appendChild(style);
         }
     }
 

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Files Report - {{ project_name }}{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <header class="report-header">
+        <h1><i class="fas fa-file"></i> File Analysis</h1>
+        <p>Project: {{ project_name }}</p>
+    </header>
+    
+    {% include 'report_nav.html' %}
+
+    <main class="main-content">
+        <div class="filters-section">
+            <h3><i class="fas fa-filter"></i> Filters</h3>
+            <div class="filters-grid">
+                <div class="form-group">
+                    <label for="typeFilter">File Type</label>
+                    <select id="typeFilter"><option value="">All Types</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="normal">Normal</option>
+                        <option value="suspicious">Suspicious</option>
+                        <option value="flagged">Flagged</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchFilter">Search File Name</label>
+                    <input type="text" id="searchFilter" placeholder="Search...">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="btn btn-sm btn-outline" onclick="manager.clearFilters()">Clear Filters</button>
+                <span id="filterStats" class="help-text"></span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">Processed Files</div>
+                <div id="tableStats" class="help-text">Loading...</div>
+            </div>
+            <div id="tableContent">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/report.js') }}"></script>
+<script>
+    let manager;
+    document.addEventListener('DOMContentLoaded', function() {
+        manager = new DataTableManager({
+            endpoint: `/api/report/{{ project_name }}/files`,
+            dataKey: 'files',
+            tableContentId: 'tableContent',
+            tableStatsId: 'tableStats',
+            filterStatsId: 'filterStats',
+            filterIds: {
+                type: 'typeFilter',
+                status: 'statusFilter',
+                search: 'searchFilter',
+            },
+            columns: [
+                { key: 'name', label: 'File Name' },
+                { key: 'type', label: 'Type' },
+                { key: 'indicators', label: 'Indicators Found' },
+                { key: 'status', label: 'Status' }
+            ],
+            filterFunction: (item, filters) => {
+                const searchLower = filters.search.toLowerCase();
+                return (!filters.type || item.type === filters.type) &&
+                       (!filters.status || item.status === filters.status) &&
+                       (!searchLower || 
+                        (item.name && item.name.toLowerCase().includes(searchLower)));
+            },
+            renderRow: (item) => `
+                <tr>
+                    <td><span class="file-name">${item.name}</span></td>
+                    <td><span class="badge category-default">${item.type || 'unknown'}</span></td>
+                    <td>${item.indicators || 0}</td>
+                    <td><span class="badge status-${item.status || 'normal'}">${item.status || 'normal'}</span></td>
+                </tr>
+            `
+        });
+        manager.init();
+    });
+</script>
+
+<!-- AI Assistant -->
+<div id="ai-assistant-container"></div>
+<script src="{{ url_for('static', filename='js/ai_assistant.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const aiAssistant = new AIAssistant({
+            projectName: '{{ project_name }}',
+            containerId: 'ai-assistant-container'
+        });
+    });
+</script>
+{% endblock %}
+

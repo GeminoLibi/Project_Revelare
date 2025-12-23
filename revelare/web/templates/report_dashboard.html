@@ -1,65 +1,234 @@
-{% extends "base.html" %}
+ {% extends "base.html" %}
 
 {% block title %}Report Dashboard - {{ project_name }}{% endblock %}
 
 {% block content %}
+<style>
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+.dashboard-content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+.stat-card-clickable {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+.stat-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--secondary);
+}
+.quick-link-btn {
+    text-align: left;
+    justify-content: flex-start;
+    text-decoration: none;
+}
+.category-link {
+    text-decoration: none;
+    color: var(--text-light);
+    flex: 1;
+}
+.category-link:hover {
+    color: var(--secondary);
+}
+.recent-indicators-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.indicator-row-clickable {
+    cursor: pointer;
+}
+.indicator-row-clickable:hover {
+    background-color: #f0f0f0;
+}
+</style>
 <div class="report-container">
     <header class="report-header">
-        <h1><i class="fas fa-tachometer-alt"></i> Executive Dashboard</h1>
-        <p>Project: {{ project_name }}</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1><i class="fas fa-tachometer-alt"></i> Executive Dashboard</h1>
+                <p>Project: {{ project_name }}</p>
+            </div>
+            <div>
+                <form method="POST" action="{{ url_for('export_report', project_name=project_name) }}" id="exportForm" style="display: inline;">
+                    <button type="submit" class="btn" id="exportBtn" style="background: var(--secondary); color: white;">
+                        <i class="fas fa-download"></i> <span id="exportBtnText">Export Report Package</span>
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('clean_findings', project_name=project_name) }}" id="cleanForm" style="display: inline; margin-left: 10px;">
+                    <button type="submit" class="btn" id="cleanBtn" style="background: var(--warning); color: white;" title="Re-validate findings with updated regex patterns to remove false positives">
+                        <i class="fas fa-broom"></i> <span id="cleanBtnText">Clean False Positives</span>
+                    </button>
+                </form>
+            </div>
+        </div>
     </header>
     
     {% include 'report_nav.html' %}
 
     <main class="main-content">
-        <div class="dashboard-grid">
+        <div class="dashboard-stats-grid">
+            <div class="card stat-card-clickable" onclick="window.location.href='{{ url_for('report_page', project_name=project_name, page='indicators') }}'">
+                <div class="card-header">
+                    <h2><i class="fas fa-search"></i> All Indicators</h2>
+                </div>
+                <div class="stat-number">{{ total_indicators }}</div>
+                <p style="color: var(--text-muted); margin-top: 10px;">Click to view all</p>
+            </div>
+            <div class="card stat-card-clickable" onclick="window.location.href='{{ url_for('report_page', project_name=project_name, page='files') }}'">
+                <div class="card-header">
+                    <h2><i class="fas fa-file"></i> Files Processed</h2>
+                </div>
+                <div class="stat-number">{{ files_processed }}</div>
+                <p style="color: var(--text-muted); margin-top: 10px;">Click to view files</p>
+            </div>
             <div class="card">
                 <div class="card-header">
-                    <h2><i class="fas fa-chart-line"></i> Summary</h2>
+                    <h2><i class="fas fa-tags"></i> Categories</h2>
                 </div>
-                <p><strong>Total Indicators Found:</strong> {{ total_indicators }}</p>
-                <p><strong>Files Processed:</strong> {{ files_processed }}</p>
-                <p><strong>Indicator Categories:</strong> {{ category_count }}</p>
+                <div class="stat-number">{{ category_count }}</div>
+                <p style="color: var(--text-muted); margin-top: 10px;">Unique categories</p>
             </div>
+            <div class="card stat-card-clickable" onclick="window.location.href='{{ url_for('report_page', project_name=project_name, page='geographic') }}'">
+                <div class="card-header">
+                    <h2><i class="fas fa-globe"></i> Geographic</h2>
+                </div>
+                <div class="stat-number">View</div>
+                <p style="color: var(--text-muted); margin-top: 10px;">IP locations & GPS</p>
+            </div>
+        </div>
+
+        <div class="dashboard-content-grid">
             <div class="card">
                 <div class="card-header">
                     <h2><i class="fas fa-tags"></i> Top Categories</h2>
                 </div>
                 {% if top_categories %}
-                    <ul>
+                    <ul style="list-style: none; padding: 0;">
                     {% for category, count in top_categories %}
-                        <li>{{ category.replace('_', ' ') }}: {{ count }}</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;">
+                            <a href="{{ url_for('report_page', project_name=project_name, page='indicators') }}?category={{ category }}" 
+                               class="category-link">
+                                {{ category.replace('_', ' ') }}
+                            </a>
+                            <span style="font-weight: bold; color: var(--secondary);">{{ count }}</span>
+                        </li>
                     {% endfor %}
                     </ul>
                 {% else %}
                     <p>No category data available.</p>
                 {% endif %}
             </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-clock"></i> Quick Links</h2>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="{{ url_for('report_page', project_name=project_name, page='indicators') }}" 
+                       class="btn quick-link-btn">
+                        <i class="fas fa-search"></i> View All Indicators
+                    </a>
+                    <a href="{{ url_for('report_page', project_name=project_name, page='geographic') }}" 
+                       class="btn quick-link-btn">
+                        <i class="fas fa-globe"></i> Geographic Analysis
+                    </a>
+                    <a href="{{ url_for('report_page', project_name=project_name, page='security') }}" 
+                       class="btn quick-link-btn">
+                        <i class="fas fa-shield-alt"></i> Security Findings
+                    </a>
+                    <a href="{{ url_for('report_page', project_name=project_name, page='files') }}" 
+                       class="btn quick-link-btn">
+                        <i class="fas fa-file"></i> File Analysis
+                    </a>
+                </div>
+            </div>
         </div>
 
+        {% if available_exports %}
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-header">
+                <h2><i class="fas fa-download"></i> Available Exports</h2>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Export File</th>
+                            <th>Created</th>
+                            <th>Size</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for export in available_exports %}
+                        <tr>
+                            <td><code>{{ export.filename }}</code></td>
+                            <td>{{ export.created }}</td>
+                            <td>
+                                {% if export.size > 1048576 %}
+                                    {{ "%.2f"|format(export.size / 1048576) }} MB
+                                {% elif export.size > 1024 %}
+                                    {{ "%.2f"|format(export.size / 1024) }} KB
+                                {% else %}
+                                    {{ export.size }} B
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('download_export', project_name=project_name, filename=export.filename) }}" 
+                                   class="btn btn-sm" style="text-decoration: none;">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="table-container">
-            <div class="table-header">
+            <div class="recent-indicators-header">
                 <div class="table-title">Recent Indicators (Sample)</div>
+                <a href="{{ url_for('report_page', project_name=project_name, page='indicators') }}" 
+                   class="btn btn-sm" style="text-decoration: none;">
+                    <i class="fas fa-arrow-right"></i> View All
+                </a>
             </div>
             {% if recent_indicators %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th>Value</th>
-                        <th>File Source</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for indicator in recent_indicators %}
-                    <tr>
-                        <td><span class="badge">{{ indicator.category.replace('_', ' ') }}</span></td>
-                        <td><span class="indicator-value">{{ indicator.value }}</span></td>
-                        <td>{{ indicator.file_source }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <div style="overflow-x: auto;">
+                <table class="table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Value</th>
+                            <th>File Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for indicator in recent_indicators %}
+                        <tr class="indicator-row-clickable" onclick="window.location.href='{{ url_for('report_page', project_name=project_name, page='indicators') }}?search={{ indicator.value|urlencode }}'">
+                            <td><span class="badge">{{ indicator.category.replace('_', ' ') }}</span></td>
+                            <td><span class="indicator-value" style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">{{ indicator.value }}</span></td>
+                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ indicator.file_source }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
             <div class="empty-state">
                 <p>No recent indicators to display.</p>
@@ -68,4 +237,169 @@
         </div>
     </main>
 </div>
+
+<!-- AI Assistant -->
+<div id="ai-assistant-container"></div>
 {% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ai_assistant.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const aiAssistant = new AIAssistant({
+            projectName: '{{ project_name }}',
+            containerId: 'ai-assistant-container'
+        });
+        
+        // Handle export form submission with better feedback
+        const exportForm = document.getElementById('exportForm');
+        const exportBtn = document.getElementById('exportBtn');
+        const exportBtnText = document.getElementById('exportBtnText');
+        
+        if (exportForm && exportBtn) {
+            exportForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Show loading state
+                exportBtn.disabled = true;
+                if (exportBtnText) {
+                    exportBtnText.textContent = 'Exporting...';
+                }
+                
+                // Submit via fetch for better error handling
+                fetch(exportForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(new FormData(exportForm))
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Export successful! File: ' + data.filename + '\n\nThe export will appear in the Available Exports section below.');
+                        // Reload page to show new export in list
+                        window.location.reload();
+                    } else {
+                        alert('Export failed: ' + (data.message || 'Unknown error'));
+                        exportBtn.disabled = false;
+                        if (exportBtnText) {
+                            exportBtnText.textContent = 'Export Report Package';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Export error:', error);
+                    alert('Export failed: ' + error.message);
+                    exportBtn.disabled = false;
+                    if (exportBtnText) {
+                        exportBtnText.textContent = 'Export Report Package';
+                    }
+                });
+            });
+        }
+        
+        // Handle clean findings form submission
+        const cleanForm = document.getElementById('cleanForm');
+        const cleanBtn = document.getElementById('cleanBtn');
+        const cleanBtnText = document.getElementById('cleanBtnText');
+        
+        if (cleanForm && cleanBtn) {
+            cleanForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!confirm('This will re-validate all findings with updated regex patterns and remove false positives. Continue?')) {
+                    return;
+                }
+                
+                // Show loading state
+                cleanBtn.disabled = true;
+                if (cleanBtnText) {
+                    cleanBtnText.textContent = 'Cleaning...';
+                }
+                
+                // Submit via fetch
+                fetch(cleanForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(new FormData(cleanForm))
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Findings cleaned successfully!\n\n' + data.message + '\n\nRemoved: ' + (data.stats?.total_removed || 0) + ' false positives');
+                        // Reload page to show updated data
+                        window.location.reload();
+                    } else {
+                        alert('Clean failed: ' + (data.message || 'Unknown error'));
+                        cleanBtn.disabled = false;
+                        if (cleanBtnText) {
+                            cleanBtnText.textContent = 'Clean False Positives';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Clean error:', error);
+                    alert('Clean failed: ' + error.message);
+                    cleanBtn.disabled = false;
+                    if (cleanBtnText) {
+                        cleanBtnText.textContent = 'Clean False Positives';
+                    }
+                });
+            });
+        }
+        
+        // Handle clean findings form submission
+        const cleanForm = document.getElementById('cleanForm');
+        const cleanBtn = document.getElementById('cleanBtn');
+        const cleanBtnText = document.getElementById('cleanBtnText');
+        
+        if (cleanForm && cleanBtn) {
+            cleanForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!confirm('This will re-validate all findings with updated regex patterns and remove false positives. Continue?')) {
+                    return;
+                }
+                
+                cleanBtn.disabled = true;
+                if (cleanBtnText) {
+                    cleanBtnText.textContent = 'Cleaning...';
+                }
+                
+                fetch(cleanForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(new FormData(cleanForm))
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Findings cleaned successfully!\n\n' + data.message + '\n\nRemoved: ' + (data.stats?.total_removed || 0) + ' false positives');
+                        window.location.reload();
+                    } else {
+                        alert('Clean failed: ' + (data.message || 'Unknown error'));
+                        cleanBtn.disabled = false;
+                        if (cleanBtnText) {
+                            cleanBtnText.textContent = 'Clean False Positives';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Clean error:', error);
+                    alert('Clean failed: ' + error.message);
+                    cleanBtn.disabled = false;
+                    if (cleanBtnText) {
+                        cleanBtnText.textContent = 'Clean False Positives';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
+

@@ -56,78 +56,160 @@ def _build_indicators(findings: Dict[str, Any]) -> List[Dict[str, Any]]:
         if category == 'Processing_Summary' or not isinstance(items, dict):
             continue
         for value, context in items.items():
-            file_source, position = "Unknown", "N/A"
-            if 'File:' in context:
-                file_source = context.split('File:')[1].split('|')[0].strip()
-            if 'Position:' in context:
-                position = context.split('Position:')[1].split('|')[0].strip()
+            file_source, position, source_type, device_info = "Unknown", "N/A", "Unknown", ""
+            if isinstance(context, str):
+                if 'File:' in context:
+                    file_source = context.split('File:')[1].split('|')[0].strip()
+                if 'Position:' in context:
+                    position = context.split('Position:')[1].split('|')[0].strip()
+                if 'Source:' in context:
+                    source_type = context.split('Source:')[1].split('|')[0].strip()
+                if 'Device:' in context:
+                    device_info = context.split('Device:')[1].split('|')[0].strip()
+                if 'Type:' in context:
+                    source_type = context.split('Type:')[1].split('|')[0].strip()
+            
             rows.append({
                 'category': category,
                 'value': value,
-                'details': context,
+                'details': context if isinstance(context, str) else str(context),
                 'file': file_source,
-                'position': position
+                'position': position,
+                'source': source_type,
+                'device': device_info,
+                'category_display': category.replace('_', ' ').title()
             })
     return rows
 
 
 def _build_geographic(project_name: str, findings: Dict[str, Any]) -> List[Dict[str, Any]]:
-    # Collect IPv4s
+    # Collect IPv4s and GPS coordinates
     ip_values: List[str] = []
+    gps_coords: List[Dict[str, Any]] = []
+    
     for category, items in findings.items():
         if 'IPv4' in str(category) and isinstance(items, dict):
             ip_values.extend(list(items.keys()))
+        elif category == 'GPS_Coordinates' and isinstance(items, dict):
+            for coord, context in items.items():
+                file_source = "Unknown"
+                device_info = ""
+                if isinstance(context, str):
+                    if 'File:' in context:
+                        file_source = context.split('File:')[1].split('|')[0].strip()
+                    if 'Device:' in context:
+                        device_info = context.split('Device:')[1].split('|')[0].strip()
+                try:
+                    lat, lon = map(str.strip, coord.split(','))
+                    gps_coords.append({
+                        'latitude': float(lat),
+                        'longitude': float(lon),
+                        'file': file_source,
+                        'device': device_info,
+                        'coordinates': coord
+                    })
+                except:
+                    pass
 
     report_gen = reporter_utils.ReportGenerator()
     enriched = report_gen.enrich_ips(ip_values)
 
     rows: List[Dict[str, Any]] = []
+    
+    # Add IP addresses
     for ip, details in enriched.items():
         if not isinstance(details, dict):
             continue
         country = details.get('country') or ''
+        region = details.get('region') or ''
         city = details.get('city') or ''
-        asn = details.get('asn') or details.get('asn_org') or details.get('org') or ''
+        asn = details.get('as') or details.get('asn') or details.get('asn_org') or details.get('org') or ''
+        lat = details.get('lat') or ''
+        lon = details.get('lon') or ''
+        source = details.get('source') or 'Unknown'
         error = details.get('error')
+        
         if error:
             risk = 'Low'
         else:
             risk = 'Medium' if country in {"RU", "CN", "KP", "IR"} else 'Low'
 
         indicators_count = 0
+        file_sources = set()
         for category, items in findings.items():
             if isinstance(items, dict) and 'IPv4' in str(category):
                 if ip in items:
                     indicators_count += 1
+                    context = items[ip]
+                    if isinstance(context, str) and 'File:' in context:
+                        file_sources.add(context.split('File:')[1].split('|')[0].strip())
 
         rows.append({
+            'type': 'IP',
             'ip': ip,
             'country': country,
+            'region': region,
             'city': city,
             'asn': asn,
+            'latitude': lat,
+            'longitude': lon,
             'risk': risk,
-            'indicators': indicators_count
+            'indicators': indicators_count,
+            'files': list(file_sources)[:5],  # Limit to first 5 files
+            'source': source
         })
+    
+    # Add GPS coordinates
+    for gps in gps_coords:
+        rows.append({
+            'type': 'GPS',
+            'latitude': str(gps['latitude']),
+            'longitude': str(gps['longitude']),
+            'coordinates': gps['coordinates'],
+            'file': gps['file'],
+            'device': gps['device'],
+            'country': '',
+            'city': '',
+            'asn': '',
+            'risk': 'Low',
+            'indicators': 1,
+            'files': [gps['file']] if gps['file'] != 'Unknown' else [],
+            'source': 'EXIF'
+        })
+    
     return rows
 
 
 def _build_files(findings: Dict[str, Any]) -> List[Dict[str, Any]]:
     file_map: Dict[str, Dict[str, Any]] = {}
+    category_map: Dict[str, set] = {}
+    
     for category, items in findings.items():
         if category == 'Processing_Summary' or not isinstance(items, dict):
             continue
         for value, context in items.items():
             src = "Unknown"
-            if 'File:' in context:
+            if isinstance(context, str) and 'File:' in context:
                 src = context.split('File:')[1].split('|')[0].strip()
+            
             entry = file_map.setdefault(src, {
                 'name': src,
-                'type': os.path.splitext(src)[1].lower().lstrip('.'),
+                'type': os.path.splitext(src)[1].lower().lstrip('.') or 'unknown',
                 'size': 0,
                 'indicators': 0,
+                'categories': set(),
                 'status': 'normal'
             })
             entry['indicators'] += 1
+            if src not in category_map:
+                category_map[src] = set()
+            category_map[src].add(category)
+    
+    # Convert sets to lists for JSON serialization
+    for file_name, entry in file_map.items():
+        entry['categories'] = sorted(list(category_map.get(file_name, set())))
+        entry['category_count'] = len(entry['categories'])
+    
     return list(file_map.values())
 
 
@@ -146,10 +228,34 @@ def _build_security(findings: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _build_technical(findings: Dict[str, Any]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
+    processing_summary = findings.get('Processing_Summary', {})
+    
+    # Add processing summary info
+    if processing_summary:
+        rows.append({
+            'type': 'summary',
+            'category': 'Processing Summary',
+            'total_files': processing_summary.get('Total_Files_Processed', 0),
+            'total_indicators': sum(len(v) for k, v in findings.items() if k != 'Processing_Summary' and isinstance(v, dict)),
+            'categories_found': len([k for k in findings.keys() if k != 'Processing_Summary' and isinstance(findings[k], dict)])
+        })
+    
+    # Add category breakdowns
     for category, items in findings.items():
         if category == 'Processing_Summary' or not isinstance(items, dict):
             continue
-        rows.append({'category': category, 'count': len(items)})
+        
+        # Get sample values
+        sample_values = list(items.keys())[:3]
+        
+        rows.append({
+            'type': 'category',
+            'category': category,
+            'category_display': category.replace('_', ' ').title(),
+            'count': len(items),
+            'sample_values': sample_values
+        })
+    
     return rows
 
 
@@ -222,36 +328,118 @@ def export_reader_package(project_name: str) -> str:
         src_path = os.path.join(src_templates, name)
         dest_path = os.path.join(templates_dir, name)
 
-        if name == 'base.html':
-            # Create a reader-specific base.html that removes problematic navigation links
+        if name == 'report_dashboard.html':
+            # Create a reader-specific report_dashboard.html that removes export features
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-
-            # Remove navigation links that don't exist in reader app
-            content = content.replace(
-                '''                <a href="{{ url_for('email_browser') }}" class="nav-link">
-                    <i class="fas fa-envelope"></i> Email Browser
-                </a>
-                <a href="{{ url_for('link_analysis') }}" class="nav-link">
-                    <i class="fas fa-link"></i> Link Analysis
-                </a>
-                <a href="{{ url_for('string_search') }}" class="nav-link">
-                    <i class="fas fa-search"></i> String Search
-                </a>
-                <a href="{{ url_for('fractal_encryption') }}" class="nav-link">
-                    <i class="fas fa-snowflake"></i> Fractal Encryption
-                </a>
-                <a href="{{ url_for('settings') }}" class="nav-link">
-                    <i class="fas fa-cog"></i> Settings
-                </a>''',
-                '''                <!-- Reader app only shows report navigation -->
-                <span class="nav-link disabled">
-                    <i class="fas fa-info-circle"></i> Report Viewer
-                </span>'''
+            
+            import re
+            # Remove export button form section (lines 65-71)
+            # Find and remove the div containing the export form
+            content = re.sub(
+                r'<div>\s*<form method="POST" action="\{\{ url_for\(\'export_report\'.*?</form>\s*</div>',
+                '<div></div>',  # Replace with empty div to maintain structure
+                content,
+                flags=re.DOTALL
             )
-
+            
+            # Remove the entire Available Exports section - match from {% if available_exports %} to matching {% endif %}
+            # This is tricky because it contains nested {% for %} loops, so we need to count braces
+            lines = content.split('\n')
+            filtered_lines = []
+            skip_export_section = False
+            if_count = 0
+            
+            for line in lines:
+                if '{% if available_exports %}' in line:
+                    skip_export_section = True
+                    if_count = 1
+                    continue
+                elif skip_export_section:
+                    if '{% if' in line:
+                        if_count += 1
+                    elif '{% endif %}' in line:
+                        if_count -= 1
+                        if if_count == 0:
+                            skip_export_section = False
+                    continue
+                filtered_lines.append(line)
+            
+            content = '\n'.join(filtered_lines)
+            
+            # Remove export-related JavaScript
+            content = re.sub(
+                r'//\s*Handle export form submission.*?exportBtnText\.textContent = \'Export Report Package\';.*?\}\s*\}\);',
+                '',
+                content,
+                flags=re.DOTALL
+            )
+            
+            # Remove any remaining download_export links
+            content = re.sub(
+                r'<a href="\{\{ url_for\(\'download_export\'.*?</a>',
+                '',
+                content,
+                flags=re.DOTALL
+            )
+            
+            # Clean up empty divs
+            content = re.sub(r'<div>\s*</div>', '', content)
+            
             with open(dest_path, 'w', encoding='utf-8') as f:
                 f.write(content)
+        elif name == 'base.html':
+            # Create a reader-specific base.html that only has routes available in reader app
+            reader_base_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Project Revelare Report{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{{ url_for('index') }}" class="nav-logo">
+                <i class="fas fa-search"></i>
+                <span>Project Revelare Report</span>
+            </a>
+            <div class="nav-menu">
+                <a href="{{ url_for('index') }}" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">
+                            <i class="fas fa-{% if category == 'error' %}exclamation-triangle{% elif category == 'success' %}check-circle{% else %}info-circle{% endif %}"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 Project Revelare - Digital Forensics and Data Extraction Tool</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>"""
+            with open(dest_path, 'w', encoding='utf-8') as f:
+                f.write(reader_base_html)
         else:
             shutil.copy2(src_path, dest_path)
 

@@ -42,6 +42,7 @@
             <div id="tableContent">
                 <div class="loading"><div class="spinner"></div></div>
             </div>
+            <div id="pagination"></div>
         </div>
     </main>
 </div>
@@ -58,6 +59,8 @@
             tableContentId: 'tableContent',
             tableStatsId: 'tableStats',
             filterStatsId: 'filterStats',
+            paginationId: 'pagination',
+            pageSize: 50,
             filterIds: {
                 category: 'categoryFilter',
                 file: 'fileFilter',
@@ -90,4 +93,17 @@
         manager.init();
     });
 </script>
+
+<!-- AI Assistant -->
+<div id="ai-assistant-container"></div>
+<script src="{{ url_for('static', filename='js/ai_assistant.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const aiAssistant = new AIAssistant({
+            projectName: '{{ project_name }}',
+            containerId: 'ai-assistant-container'
+        });
+    });
+</script>
 {% endblock %}
+

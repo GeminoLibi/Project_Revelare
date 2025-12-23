@@ -12,9 +12,12 @@
     <div class="card">
         <h2><i class="fas fa-plus-circle"></i> Start New Case</h2>
         <p>Create a new case with proper onboarding and evidence processing.</p>
-        <div class="form-actions">
+        <div class="form-actions" style="display: flex; gap: 15px;">
             <a href="{{ url_for('create_case') }}" class="btn btn-primary btn-large">
                 <i class="fas fa-folder-plus"></i> Create New Case
+            </a>
+            <a href="{{ url_for('global_dashboard') }}" class="btn btn-success btn-large" target="_blank">
+                <i class="fas fa-globe-americas"></i> View Global Intelligence
             </a>
         </div>
     </div>

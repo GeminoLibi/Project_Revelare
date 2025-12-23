@@ -1,0 +1,50 @@
+# Temporary directories
+temp/
+*.tmp
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+clean_log.txt
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Test directories
+test_export_extract/
+test_export_fixed/
+test_final/
+
+# Case data (if sensitive)
+# cases/
+
+# GeoIP databases (should be downloaded separately)
+GeoLite2-ASN.mmdb
+GeoLite2-City.mmdb
+revelare/GeoLite2-ASN.mmdb
+revelare/GeoLite2-City.mmdb
+

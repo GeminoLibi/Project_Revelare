@@ -77,13 +77,55 @@ def filter_duplicate_emails(findings: Dict[str, Dict[str, str]]) -> Dict[str, Di
     
     return findings
 
+def filter_invalid_credit_cards(findings: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
+    """Filter out credit card numbers that fail Luhn validation"""
+    from revelare.utils.financial_validators import is_valid_luhn
+    
+    cc_categories = ['Credit_Card_VisaMcDiscover', 'Credit_Card_Amex', 'Credit_Card_Numbers']
+    total_removed = 0
+    
+    for category in cc_categories:
+        if category not in findings:
+            continue
+        
+        cards = findings[category]
+        if len(cards) <= 0:
+            continue
+        
+        filtered_cards = {}
+        removed_count = 0
+        
+        for card_number, context in cards.items():
+            if is_valid_luhn(card_number):
+                filtered_cards[card_number] = context
+            else:
+                removed_count += 1
+                logger.debug(f"Removed invalid credit card (failed Luhn): {card_number[:4]}****")
+        
+        findings[category] = filtered_cards
+        total_removed += removed_count
+        logger.info(f"Credit card filtering ({category}): removed {removed_count} invalid cards, kept {len(filtered_cards)}")
+    
+    if total_removed > 0:
+        logger.info(f"Total invalid credit cards removed: {total_removed}")
+    
+    return findings
+
 def process_file(file_path: str, findings: Dict[str, Dict[str, str]]) -> bool:
     try:
         if not file_path or not isinstance(file_path, str) or not isinstance(findings, dict):
             return False
         if not SecurityValidator.is_safe_path(file_path):
             return False
-        if not os.path.exists(file_path) or not os.access(file_path, os.R_OK):
+        if not os.path.exists(file_path):
+            return False
+        
+        # Skip directories - they should be explored separately
+        if os.path.isdir(file_path):
+            logger.debug(f"Skipping directory: {file_path}")
+            return False
+        
+        if not os.access(file_path, os.R_OK):
             return False
         
         file_name = os.path.basename(file_path)
@@ -138,26 +180,60 @@ def run_extraction(input_files: List[str]) -> Dict[str, Dict[str, Any]]:
     start_time = time.time()
     last_monitor_time = start_time
 
+    MAX_FILE_PROCESS_TIME = getattr(Config, 'MAX_FILE_PROCESS_TIME', 300)  # 5 minutes default
+    
     for i, file_path in enumerate(input_files):
         try:
             file_name = os.path.basename(file_path)
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            # Log start of processing for potentially slow files
+            if file_ext in ['.pdf', '.docx', '.xlsx', '.zip', '.rar', '.7z']:
+                logger.info(f"Starting to process {file_name} ({i+1}/{len(input_files)})...")
             
             file_start_time = time.time()
-            if process_file(file_path, findings):
-                processed_files += 1
+            
+            # Process file (synchronous - we'll monitor time)
+            try:
+                if process_file(file_path, findings):
+                    processed_files += 1
+                    file_time = time.time() - file_start_time
+                    if file_time > 10: 
+                        logger.info(f"File {file_name} processed in {file_time:.1f}s")
+                    # Warn if file took suspiciously long
+                    if file_time > 120:  # 2 minutes
+                        logger.warning(f"File {file_name} took {file_time:.1f}s to process - this may indicate a problematic file")
+                else:
+                    skipped_files += 1
+            except Exception as e:
                 file_time = time.time() - file_start_time
-                if file_time > 60: 
-                    logger.info(f"File {file_name} processed in {file_time:.1f}s")
-            else:
-                skipped_files += 1
+                logger.error(f"Error processing {file_name} after {file_time:.1f}s: {e}")
+                failed_files += 1
+                continue
 
             current_time = time.time()
-            if ((i + 1) % PROGRESS_UPDATE_INTERVAL == 0 or
-                    current_time - last_monitor_time >= MONITORING_INTERVAL_SECONDS):
+            
+            # Progress update: every N files OR every N seconds OR if file took > 5 seconds
+            file_time = current_time - file_start_time
+            should_update = (
+                (i + 1) % PROGRESS_UPDATE_INTERVAL == 0 or
+                current_time - last_monitor_time >= MONITORING_INTERVAL_SECONDS or
+                file_time > 5
+            )
+            
+            if should_update:
                 elapsed = current_time - start_time
                 rate = (i + 1) / elapsed if elapsed > 0 else 0
                 total_indicators = sum(len(items) for items in findings.values())
-                logger.info(f"Progress: {i+1}/{len(input_files)} files processed ({rate:.1f} files/sec, {total_indicators} indicators)")
+                remaining = len(input_files) - (i + 1)
+                eta_seconds = remaining / rate if rate > 0 else 0
+                eta_minutes = eta_seconds / 60
+                
+                progress_msg = f"Progress: {i+1}/{len(input_files)} files processed ({rate:.1f} files/sec, {total_indicators} indicators"
+                if eta_minutes > 0 and rate > 0:
+                    progress_msg += f", ~{eta_minutes:.1f} min remaining"
+                progress_msg += ")"
+                logger.info(progress_msg)
                 last_monitor_time = current_time
 
         except Exception as e:
@@ -172,6 +248,7 @@ def run_extraction(input_files: List[str]) -> Dict[str, Dict[str, Any]]:
     findings = group_urls_by_domain(findings)
     
     findings = filter_duplicate_emails(findings)
+    findings = filter_invalid_credit_cards(findings)
 
     findings["Processing_Summary"] = {
         "Total_Files_Processed": str(processed_files),
