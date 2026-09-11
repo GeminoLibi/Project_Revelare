@@ -6,8 +6,9 @@ CLI and GUI extractors both import this module. Policy:
 - Strong crypto (bc1 / 0x+40 hex / Base58Check) is kept with no nearby keywords.
 - Matches inside URLs, emails, or path/query tokens are always dropped.
 - Ambiguous 1/3 Base58 that fails checksum is kept only if crypto words are nearby.
-- Person names: keep plausible First Last (Jane Doe / Martin Brown) with no
-  legal-keyword gate. Drop email headers, salutations, and spreadsheet/legal
+- Person names: keep isolated First Last (Jane Doe / Martin Brown), optional
+  middle initial (Mary A. Smith), optional Jr/Sr/III. No legal-keyword gate.
+  Drop email headers, salutations, title-case document runs, and spreadsheet
   labels (Case No, Start Date, Emergency Response, and similar).
 """
 from __future__ import annotations
@@ -72,6 +73,17 @@ _BODY_NAME_PHRASE_BLOCKLIST = frozenset({
     "united states",
     "welcome onboard",
     "true copy",
+    "hi tyra",
+    "probable cause",
+    "coming soon",
+    "cover reveal",
+    "child loss",
+    "lulu publishing",
+    "ingram sparks",
+    "sinch voice",
+    "goodreads author",
+    "social me",
+    "author you",
 })
 
 # Last token of a form/spreadsheet header when the leading tokens are labels too.
@@ -87,10 +99,77 @@ _LABEL_TAIL = frozenset({
     "status",
     "type",
     "name",
+    "cycle",
+    "reason",
+    "description",
+    "details",
+    "methods",
+    "campaign",
+    "package",
+    "reminders",
+    "research",
+    "recovery",
+    "wellness",
+    "goals",
+    "keyword",
+    "topics",
+    "questions",
+    "messages",
+    "graphics",
+    "publishing",
 })
 
-# Modest header/form words. Not a general English deny-list.
-_LABEL_WORDS = _LABEL_TAIL | frozenset({
+_ROLE_PREFIXES = frozenset({
+    "inv",
+    "det",
+    "sgt",
+    "tpr",
+    "ptl",
+    "ofc",
+    "cpl",
+    "lt",
+    "capt",
+    "maj",
+    "col",
+    "hon",
+    "atty",
+    "esq",
+    "dr",
+    "mr",
+    "mrs",
+    "ms",
+    "miss",
+    "prof",
+    "po",
+})
+
+_GREETING_FIRST = frozenset({
+    "hi",
+    "hello",
+    "hey",
+    "dear",
+    "greetings",
+})
+
+
+def _with_simple_plurals(words: Iterable[str]) -> frozenset:
+    out = set()
+    for word in words:
+        token = (word or "").strip().lower()
+        if not token:
+            continue
+        out.add(token)
+        if token.endswith("s"):
+            out.add(token[:-1])
+        else:
+            out.add(token + "s")
+        if token.endswith("y") and len(token) > 2 and token[-2] not in "aeiou":
+            out.add(token[:-1] + "ies")
+    return frozenset(out)
+
+
+# Modest header/form/marketing words. Not a general English deny-list.
+_LABEL_WORDS = _with_simple_plurals(_LABEL_TAIL | frozenset({
     "activation",
     "and",
     "at",
@@ -154,8 +233,170 @@ _LABEL_WORDS = _LABEL_TAIL | frozenset({
     "tower",
     "universal",
     "utc",
+    "view",
+    "village",
     "with",
+    "your",
     "zone",
+    "access",
+    "advance",
+    "affiant",
+    "approach",
+    "area",
+    "artificial",
+    "ave",
+    "azimuth",
+    "biographical",
+    "blvd",
+    "browsing",
+    "bytes",
+    "city",
+    "communication",
+    "completed",
+    "completion",
+    "content",
+    "dialed",
+    "direction",
+    "download",
+    "dump",
+    "duration",
+    "editorial",
+    "estates",
+    "etiquette",
+    "history",
+    "hwy",
+    "hybrid",
+    "identifier",
+    "information",
+    "intelligence",
+    "knowledge",
+    "latitude",
+    "ln",
+    "logs",
+    "longitude",
+    "meadows",
+    "mountain",
+    "provided",
+    "rd",
+    "requested",
+    "roaming",
+    "sessions",
+    "serving",
+    "successfully",
+    "summary",
+    "tech",
+    "timing",
+    "trace",
+    "upload",
+    "zip",
+    "book",
+    "copy",
+    "plan",
+    "account",
+    "alternative",
+    "author",
+    "campaign",
+    "cause",
+    "chaining",
+    "coming",
+    "countdown",
+    "cover",
+    "creative",
+    "cycle",
+    "description",
+    "disconnect",
+    "discussion",
+    "emotional",
+    "goal",
+    "goodreads",
+    "graphic",
+    "grief",
+    "hashtag",
+    "inspirational",
+    "keyword",
+    "launch",
+    "linked",
+    "loss",
+    "marketing",
+    "me",
+    "message",
+    "method",
+    "our",
+    "package",
+    "ported",
+    "pre",
+    "prelaunch",
+    "preorder",
+    "probable",
+    "publishing",
+    "question",
+    "rate",
+    "reader",
+    "reason",
+    "recovery",
+    "reminder",
+    "research",
+    "reveal",
+    "scene",
+    "sinch",
+    "social",
+    "soon",
+    "topic",
+    "trauma",
+    "triangle",
+    "voice",
+    "wellness",
+    "you",
+}))
+
+# Ordinary English / document words. If EVERY name token is in this set,
+# the hit is a title-case heading, not a person. Surnames like Smith/Brown
+# stay out so Jane Doe / Martin Brown / John Smith still match.
+_COMMON_ENGLISH = _LABEL_WORDS | _with_simple_plurals({
+    "about",
+    "after",
+    "against",
+    "all",
+    "also",
+    "any",
+    "available",
+    "based",
+    "before",
+    "below",
+    "between",
+    "bill",
+    "both",
+    "child",
+    "click",
+    "customer",
+    "daisy",
+    "each",
+    "full",
+    "good",
+    "head",
+    "here",
+    "ingram",
+    "into",
+    "link",
+    "lulu",
+    "more",
+    "next",
+    "only",
+    "order",
+    "other",
+    "over",
+    "please",
+    "same",
+    "sparks",
+    "thank",
+    "thanks",
+    "then",
+    "true",
+    "under",
+    "until",
+    "updated",
+    "using",
+    "welcome",
 })
 
 _KNOWN_HEADER_PHRASES = frozenset({
@@ -168,19 +409,49 @@ _KNOWN_HEADER_PHRASES = frozenset({
     "start date",
     "start date end",
     "tower address",
+    "billing address",
+    "probable cause",
+    "coming soon",
+    "cover reveal",
+    "linked accounts",
+    "pre-launch package",
+    "pre-order reminders",
+    "keyword research",
+    "grief recovery",
+    "child loss",
+    "lulu publishing",
+    "ingram sparks",
+    "sinch voice",
+    "goodreads author",
 })
 
 _INITIAL_TOKEN_RE = re.compile(r"^[A-Za-z]\.?$")
+_NAME_SUFFIX_RE = re.compile(r"^(?:Jr|Sr|II|III|IV)\.?$", re.IGNORECASE)
+_TITLE_TOKEN_RE = re.compile(r"^[A-Z][a-z]+(?:['-][A-Z][a-z]+)?$")
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _HTML_ENTITY_RE = re.compile(r"&[a-zA-Z]{2,8};")
 
+# Isolated First Last (+ optional middle initial / Jr-Sr-III).
+# Pattern family: SO 55194224 / 73720293 (First + optional initial + Last)
+# and SO 49563538 (one capital per token, optional Jr/Sr/III). Isolation
+# of the title-case run follows SO 61966166 so "Call Detail Records" is
+# not sliced into a fake two-word name.
+_NAME_TOKEN = r"[A-Z][a-z]+(?:['-][A-Z][a-z]+)?"
+_MIDDLE_INITIAL = r"[A-Z]\."
+_NAME_SUFFIX = r"(?:Jr|Sr|II|III|IV)\.?"
+# Do not use \b at the edges: \b fires at hyphens, which would turn
+# "Our Pre-Launch Package" into "Our Pre".
 _TITLE_NAME_RE = re.compile(
-    r"\b("
-    r"[A-Z][a-z]+(?:['-][A-Z][a-z]+)?"
-    r"(?:\s+[A-Z]\.)?"
-    r"(?:\s+[A-Z][a-z]+(?:['-][A-Z][a-z]+)?){1,2}"
-    r")\b"
+    r"(?<![\w-])("
+    r"(?:" + _NAME_TOKEN + r"\s+" + _MIDDLE_INITIAL + r"\s+" + _NAME_TOKEN + r")"
+    r"|"
+    r"(?:" + _NAME_TOKEN + r"\s+" + _NAME_TOKEN + r"(?!\s+" + _MIDDLE_INITIAL + r"))"
+    r")"
+    r"(?:\s+" + _NAME_SUFFIX + r")?"
+    r"(?![\w-])"
+    r"(?!\s+(?:Case|Date|Time|No|Warrant|Records|Detail)\b)"
+    r"(?!\s+" + _NAME_TOKEN + r")"
 )
 
 _compiled_patterns: Optional[Dict[str, re.Pattern]] = None
@@ -398,12 +669,15 @@ def should_skip_name_line(line: str) -> bool:
 def _name_tokens(name: str) -> List[str]:
     tokens: List[str] = []
     for raw in re.split(r"\s+", (name or "").strip()):
-        cleaned = raw.strip(".'-")
-        if not cleaned:
-            continue
-        if _INITIAL_TOKEN_RE.fullmatch(cleaned):
-            continue
-        tokens.append(cleaned.lower())
+        for piece in re.split(r"[-']", raw):
+            cleaned = piece.strip(".'-")
+            if not cleaned:
+                continue
+            if _INITIAL_TOKEN_RE.fullmatch(cleaned):
+                continue
+            if _NAME_SUFFIX_RE.fullmatch(cleaned):
+                continue
+            tokens.append(cleaned.lower())
     return tokens
 
 
@@ -415,16 +689,56 @@ def is_form_label_name(name: str) -> bool:
     if lowered in _KNOWN_HEADER_PHRASES:
         return True
     tokens = _name_tokens(name)
+    if not tokens:
+        return False
+    if tokens[0] in _ROLE_PREFIXES or tokens[0] in _GREETING_FIRST:
+        return True
     if len(tokens) < 2:
         return False
-    # Every token is a form/header word (covers 2-word labels and 3+ form phrases).
-    if all(token in _LABEL_WORDS for token in tokens):
+    # Repeated title-case token is a header leftover (City City), not a person.
+    if len(tokens) == 2 and tokens[0] == tokens[1]:
+        return True
+    # Any header leftover token disqualifies the candidate.
+    if any(token in _LABEL_WORDS for token in tokens):
         return True
     last = tokens[-1]
-    heads = tokens[:-1]
-    if last in _LABEL_TAIL and heads and all(token in _LABEL_WORDS for token in heads):
+    if last in _LABEL_TAIL:
+        return True
+    # Two ordinary English words in title case ("Coming Soon", "Ingram Sparks").
+    if all(token in _COMMON_ENGLISH for token in tokens):
         return True
     return False
+
+
+def _neighbor_token(text: str, start: int, end: int, side: str) -> str:
+    if side == "left":
+        chunk = text[:start].rstrip()
+        if not chunk:
+            return ""
+        return chunk.split()[-1].strip(".,;:\"'()[]")
+    chunk = text[end:].lstrip()
+    if not chunk:
+        return ""
+    return chunk.split()[0].strip(".,;:\"'()[]")
+
+
+def _is_title_case_run_slice(text: str, start: int, end: int) -> bool:
+    """True when the match sits inside a longer Title Case header run."""
+    right = _neighbor_token(text, start, end, "right")
+    if right and not _NAME_SUFFIX_RE.fullmatch(right):
+        if _TITLE_TOKEN_RE.fullmatch(right) or _INITIAL_TOKEN_RE.fullmatch(right):
+            return True
+    left = _neighbor_token(text, start, end, "left")
+    if not left:
+        return False
+    if not (_TITLE_TOKEN_RE.fullmatch(left) or _INITIAL_TOKEN_RE.fullmatch(left)):
+        return False
+    # First I. Last after a capitalized verb ("Signed Mary A. Smith") is a name.
+    # A bare First Last after another Title Case word is a header tail.
+    matched = text[start:end]
+    if re.search(r"\s[A-Z]\.\s", matched):
+        return False
+    return True
 
 
 def is_blocked_name_phrase(name: str) -> bool:
@@ -432,6 +746,8 @@ def is_blocked_name_phrase(name: str) -> bool:
     if not lowered:
         return True
     if lowered in _BODY_NAME_PHRASE_BLOCKLIST:
+        return True
+    if lowered in _KNOWN_HEADER_PHRASES:
         return True
     return is_form_label_name(name)
 
@@ -454,6 +770,8 @@ def iter_body_person_names(text: str) -> List[str]:
         for match in _TITLE_NAME_RE.finditer(visible):
             candidate = re.sub(r"\s+", " ", match.group(1).strip())
             if candidate in seen:
+                continue
+            if _is_title_case_run_slice(visible, match.start(), match.end()):
                 continue
             if is_blocked_name_phrase(candidate):
                 continue

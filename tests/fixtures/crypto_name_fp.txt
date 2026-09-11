@@ -21,4 +21,11 @@ Coordinated Universal Time
 Body names (must count):
 Please interview Jane Doe tomorrow.
 Please interview Martin Brown tomorrow.
+Please interview Markus Johnson tomorrow.
+Signed Mary A. Smith on the form.
 Defendant: John Smith
+
+Title-case document runs (must not count as names):
+Call Detail Records
+Date Time Duration
+Identifier Requested Item

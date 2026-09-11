@@ -1,0 +1,35 @@
+SEARCH WARRANT
+Case No: 26-0001
+Search Warrant
+Emergency Response
+Call Detail Records
+Coordinated Universal Time: 12:00:00
+Start Date: 2026-01-01
+End Date: 2026-03-01
+Tower Address: 100 Example Rd
+
+Subject Name: Jane Doe
+Defendant: John Smith
+Target Name: Martin Brown
+
+The court authorizes collection of records for Jane Doe.
+Please interview Martin Brown tomorrow.
+Please interview Markus Johnson tomorrow.
+Signed Mary A. Smith on the form.
+
+Case No
+Emergency Response
+Call Detail Records
+Coordinated Universal Time
+Search Warrant
+Start Date
+End Date
+Tower Address
+Billing Address
+Subscriber Name
+First Name
+Start Date End
+Date Time Duration
+Identifier Requested Item
+Grief Etiquette Editorial
+Probable Cause

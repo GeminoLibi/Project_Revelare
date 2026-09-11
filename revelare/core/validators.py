@@ -129,13 +129,20 @@ class DataValidator:
         'street', 'road', 'avenue', 'drive', 'lane', 'boulevard', 'place', 'way',
         'circle', 'parkway', 'highway', 'route', 'box', 'suite', 'floor', 'building',
         'apartment', 'apt',
+        'ave', 'blvd', 'ln', 'rd', 'hwy', 'estates', 'village', 'meadows',
         'dear', 'sir', 'madam',
+        'coming', 'soon', 'cover', 'reveal', 'keyword', 'research',
+        'recovery', 'wellness', 'campaign', 'publishing',
     }
+
+    _PERSON_NAME_SUFFIX_RE = re.compile(r"^(?:Jr|Sr|II|III|IV)\.?$", re.IGNORECASE)
+    _PERSON_NAME_INITIAL_RE = re.compile(r"^[A-Z]\.?$")
 
     @staticmethod
     def is_valid_person_name(name: str) -> bool:
         """
-        Conservative person-name check: 2-4 title-case words, no org/common false positives.
+        Conservative person-name check: First Last, optional middle initial,
+        optional Jr/Sr/III. Reject 3+ title-case words that are not that shape.
         """
         if not name or len(name) < 5 or len(name) > 80:
             return False
@@ -150,14 +157,22 @@ class DataValidator:
         if len(parts) < 2 or len(parts) > 4:
             return False
 
+        core = list(parts)
+        if DataValidator._PERSON_NAME_SUFFIX_RE.match(core[-1]):
+            core = core[:-1]
+        if len(core) == 2:
+            pass
+        elif len(core) == 3 and DataValidator._PERSON_NAME_INITIAL_RE.match(core[1]):
+            pass
+        else:
+            return False
+
         stopwords = DataValidator._PERSON_NAME_STOPWORDS
-        for part in parts:
+        for part in core:
             cleaned = part.strip(".'-")
             if len(cleaned) < 1:
                 return False
-            if re.match(r"^[A-Z]\.$", part):
-                continue
-            if re.match(r"^[A-Z]$", part):
+            if DataValidator._PERSON_NAME_INITIAL_RE.match(part):
                 continue
             if len(cleaned) < 2:
                 return False

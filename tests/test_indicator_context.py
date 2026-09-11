@@ -132,6 +132,7 @@ class TestIndicatorContext(unittest.TestCase):
             self.assertTrue(is_blocked_name_phrase(phrase), phrase)
         self.assertFalse(is_blocked_name_phrase("Jane Doe"))
         self.assertFalse(is_blocked_name_phrase("Martin Brown"))
+        self.assertFalse(is_blocked_name_phrase("Markus Johnson"))
 
         text = "\n".join(
             list(drops)
@@ -145,6 +146,108 @@ class TestIndicatorContext(unittest.TestCase):
             self.assertNotIn(phrase, names)
         self.assertIn("Jane Doe", names)
         self.assertIn("Martin Brown", names)
+
+    def test_two_token_shape_keeps_initial_drops_word_strings(self):
+        from revelare.core.indicator_context import is_blocked_name_phrase
+        from revelare.core.subject_extractor import extract_subject_names
+        from revelare.core.validators import DataValidator
+
+        self.assertTrue(DataValidator.is_valid_person_name("Mary A. Smith"))
+        self.assertTrue(DataValidator.is_valid_person_name("Markus Johnson"))
+        self.assertTrue(DataValidator.is_valid_person_name("Jane Doe Jr"))
+        self.assertFalse(DataValidator.is_valid_person_name("Call Detail Records"))
+        self.assertFalse(DataValidator.is_valid_person_name("Date Time Duration"))
+        self.assertFalse(is_blocked_name_phrase("Mary A. Smith"))
+        self.assertFalse(is_blocked_name_phrase("Markus Johnson"))
+
+        text = (
+            "Please interview Jane Doe tomorrow.\n"
+            "Please interview Martin Brown tomorrow.\n"
+            "Please interview Markus Johnson tomorrow.\n"
+            "Signed Mary A. Smith on the form.\n"
+            "Call Detail Records\n"
+            "Date Time Duration\n"
+            "Emergency Response\n"
+            "Start Date End\n"
+            "Identifier Requested Item\n"
+            "Grief Etiquette Editorial\n"
+        )
+        names = extract_subject_names(text, "shape.txt")
+        self.assertIn("Jane Doe", names)
+        self.assertIn("Martin Brown", names)
+        self.assertIn("Markus Johnson", names)
+        self.assertIn("Mary A. Smith", names)
+        self.assertNotIn("Call Detail Records", names)
+        self.assertNotIn("Call Detail", names)
+        self.assertNotIn("Detail Records", names)
+        self.assertNotIn("Date Time Duration", names)
+        self.assertNotIn("Date Time", names)
+        self.assertNotIn("Time Duration", names)
+        self.assertNotIn("Emergency Response", names)
+        self.assertNotIn("Start Date End", names)
+        self.assertNotIn("Identifier Requested Item", names)
+        self.assertNotIn("Grief Etiquette Editorial", names)
+        self.assertNotIn("Grief Etiquette", names)
+        self.assertNotIn("Our Pre", names)
+        self.assertNotIn("Launch Package", names)
+        self.assertNotIn("Order Reminders", names)
+
+    def test_hyphenated_titles_are_not_sliced(self):
+        from revelare.core.subject_extractor import extract_subject_names
+
+        text = (
+            "Our Pre-Launch Package\n"
+            "Pre-Order Reminders\n"
+            "Please interview Jane Doe tomorrow.\n"
+        )
+        names = extract_subject_names(text, "hyphen.txt")
+        self.assertIn("Jane Doe", names)
+        self.assertNotIn("Our Pre", names)
+        self.assertNotIn("Pre Launch", names)
+        self.assertNotIn("Launch Package", names)
+        self.assertNotIn("Order Reminders", names)
+        self.assertNotIn("Pre Order", names)
+
+    def test_role_prefix_and_greeting_are_dropped(self):
+        from revelare.core.subject_extractor import extract_subject_names
+
+        text = (
+            "Inv M. Johnson prepared the cover sheet.\n"
+            "Hi Tyra, this greeting is not a subject name.\n"
+            "Please interview Jane Doe tomorrow.\n"
+        )
+        names = extract_subject_names(text, "role.txt")
+        self.assertIn("Jane Doe", names)
+        self.assertNotIn("Inv M. Johnson", names)
+        self.assertNotIn("Hi Tyra", names)
+
+    def test_synthetic_known_name_benchmark(self):
+        import importlib.util
+
+        from revelare.core.subject_extractor import extract_subject_names
+
+        gen_path = os.path.join(
+            os.path.dirname(__file__), "fixtures", "generate_synthetic_name_docs.py"
+        )
+        spec = importlib.util.spec_from_file_location("generate_synthetic_name_docs", gen_path)
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+
+        gen.write_documents(gen.default_out_dir())
+        extracted = []
+        for file_name, text in gen.all_documents().items():
+            extracted.extend(extract_subject_names(text, file_name).keys())
+        report = gen.score_names(extracted)
+        self.assertEqual(report["false_negatives"], [], report)
+        self.assertEqual(report["false_positives"], [], report)
+        self.assertEqual(report["recall"], 1.0, report)
+        self.assertEqual(report["precision"], 1.0, report)
+        self.assertEqual(report["known_count"], 8)
+        names = set(extracted)
+        for known in gen.KNOWN_NAMES:
+            self.assertIn(known, names)
+        for phrase in gen.JUNK_PHRASES:
+            self.assertNotIn(phrase, names)
 
     def test_end_to_end_fixture_counts(self):
         from revelare.core.file_processors import TextFileProcessor
@@ -162,6 +265,8 @@ class TestIndicatorContext(unittest.TestCase):
         self.assertNotIn(BTC_URL_CHUNK, btc)
         self.assertIn("Jane Doe", names)
         self.assertIn("Martin Brown", names)
+        self.assertIn("Markus Johnson", names)
+        self.assertIn("Mary A. Smith", names)
         self.assertIn("John Smith", names)
         self.assertNotIn("Court Clerk", names)
         self.assertNotIn("Editorial Review", names)
@@ -169,6 +274,10 @@ class TestIndicatorContext(unittest.TestCase):
         self.assertNotIn("Case No", names)
         self.assertNotIn("Start Date End", names)
         self.assertNotIn("Coordinated Universal Time", names)
+        self.assertNotIn("Call Detail Records", names)
+        self.assertNotIn("Call Detail", names)
+        self.assertNotIn("Date Time Duration", names)
+        self.assertNotIn("Identifier Requested Item", names)
 
 
 class TestStrongCryptoHelpers(unittest.TestCase):

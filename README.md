@@ -92,7 +92,7 @@ Output is `dist/ProjectRevelare.exe` (gitignored). Double-click to run; no Pytho
 
 - **Ingest:** temp-copy only. Findings keep `SourcePath` and `SourceHash`; the temp file is deleted.
 - **Crypto:** checksummed BTC/ETH/XMR stay without nearby keywords. Matches inside URLs, emails, or path tokens are dropped. Encoded MIME image/binary bodies are skipped so photo payloads are not sliced into wallet-shaped tokens.
-- **Names:** title-case First Last (Jane Doe, Martin Brown) is kept with no legal-keyword gate. Email headers, salutations, and spreadsheet/legal labels (Case No, Start Date, Coordinated Universal Time, Emergency Response, and similar) are dropped.
+- **Names:** isolated title-case First Last (Jane Doe, Martin Brown) is kept with no legal-keyword gate. Email headers, salutations, investigator/role prefixes, hyphenated title slices, and spreadsheet/legal/marketing labels (Case No, Start Date, Coordinated Universal Time, Emergency Response, Coming Soon, and similar) are dropped. A synthetic 8-name warrant/email/CDR fixture in `tests/fixtures` is the precision/recall check.
 - **Money pathways:** bank, fintech-app, and gambling brand names are per-case only and stay out of cross-case Link Analysis. Nearby `Payment_Tokens` (cashtag, handle, account/routing/last-4) are linkable.
 
 ## Project structure
