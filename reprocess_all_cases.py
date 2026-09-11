@@ -22,16 +22,16 @@ def reprocess_all_cases():
     
     print(f"Scanning {cases_dir} for cases to reprocess...")
     
-    # Find all case directories (those with raw_findings.json or extracted_files)
+    # Find all case directories (findings, ingest manifest, or legacy vault copies)
     cases = []
     for entry in os.listdir(cases_dir):
         entry_path = os.path.join(cases_dir, entry)
         if os.path.isdir(entry_path):
-            # Check if it's a processed case
             has_findings = os.path.exists(os.path.join(entry_path, 'raw_findings.json'))
             has_extracted = os.path.exists(os.path.join(entry_path, 'extracted_files'))
+            has_manifest = os.path.exists(os.path.join(entry_path, 'ingest_manifest.json'))
             
-            if has_findings or has_extracted:
+            if has_findings or has_extracted or has_manifest:
                 cases.append(entry)
     
     if not cases:
@@ -44,37 +44,15 @@ def reprocess_all_cases():
     failed_count = 0
     
     for i, case_name in enumerate(sorted(cases), 1):
-        case_path = os.path.join(cases_dir, case_name)
         print(f"\n[{i}/{len(cases)}] Reprocessing: {case_name}")
         
-        # Collect evidence files
-        evidence_files = []
-        evidence_dir = os.path.join(case_path, 'evidence')
-        
-        if os.path.exists(evidence_dir):
-            # Use evidence directory if it exists
-            for root, dirs, files in os.walk(evidence_dir):
-                for f in files:
-                    file_path = os.path.join(root, f)
-                    if os.path.isfile(file_path):
-                        evidence_files.append(file_path)
-        else:
-            # Fall back to extracted_files if evidence doesn't exist
-            extracted_dir = os.path.join(case_path, 'extracted_files')
-            if os.path.exists(extracted_dir):
-                # Get original evidence files if available
-                # Otherwise, we'll need to reprocess from extracted files
-                print(f"  Note: Using extracted_files directory (evidence not found)")
-                # For now, skip cases without evidence - they'd need original files
-                if not evidence_files:
-                    print(f"  SKIPPED: No evidence files found. Need original evidence to reprocess.")
-                    continue
+        evidence_files = case_manager.get_evidence_files_for_case(case_name)
         
         if not evidence_files:
-            print(f"  SKIPPED: No evidence files found.")
+            print(f"  SKIPPED: No source files found (legacy vault empty and original SourcePath missing).")
             continue
         
-        print(f"  Found {len(evidence_files)} evidence file(s)")
+        print(f"  Found {len(evidence_files)} source file(s)")
         
         try:
             # Reprocess the case

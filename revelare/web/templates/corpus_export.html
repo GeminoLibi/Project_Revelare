@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Corpus Export - Project Revelare{% endblock %}
+
+{% block content %}
+<div class="corpus-export">
+    <div class="page-header">
+        <h1><i class="fas fa-table"></i> Identifier Corpus Export</h1>
+        <p>Build a subject-linked identifier corpus across selected cases. Choose cases, a primary key, and columns to export as CSV, Excel, or JSON graph data.</p>
+        <p class="help-text">Provider returns (TextNow, etc.) with rotating accounts are split into segments when possible. Identifiers are only linked within the same segment when MultiAccountRisk is flagged.</p>
+        <p class="help-text">Subject names are extracted only from labeled fields (account holder, subscriber, victim, warrant subject, email party) -- not random capitalized text in body content.</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-sliders-h"></i> Export Configuration</h2>
+
+        <div class="config-grid filter-grid">
+            <div class="form-group">
+                <label for="case-filter">Search case name:</label>
+                <input type="text" id="case-filter" placeholder="Type to filter by name">
+            </div>
+            <div class="form-group">
+                <label for="incident-filter">Filter by incident type</label>
+                <select id="incident-filter">
+                    <option value="">All incident types</option>
+                    {% for incident in incident_types %}
+                    <option value="{{ incident | lower }}">{{ incident }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tag-filter">Filter by tag</label>
+                <select id="tag-filter">
+                    <option value="">All tags</option>
+                    {% for tag in case_tag_options %}
+                    <option value="{{ tag }}">{{ tag }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="section-header">
+                <label>Cases to include</label>
+                <div class="inline-actions">
+                    <button type="button" class="btn btn-sm btn-outline" id="select-all-cases">Select All</button>
+                    <button type="button" class="btn btn-sm btn-outline" id="clear-all-cases">Clear</button>
+                    <button type="button" class="btn btn-sm btn-outline" id="select-filtered-cases">Select Filtered</button>
+                </div>
+            </div>
+            <div class="case-grid" id="case-grid">
+                {% for case in cases %}
+                <label class="case-item"
+                       data-name="{{ case.name | lower }}"
+                       data-incident="{{ (case.incident_type or '') | lower }}"
+                       data-tags="{{ (case.tags or []) | join(',') | lower }}">
+                    <input type="checkbox" name="cases" value="{{ case.name }}">
+                    <span class="case-name">{{ case.name }}</span>
+                    <span class="case-badges">
+                        {% if case.incident_type and case.incident_type != 'Unknown' %}
+                        <span class="badge">{{ case.incident_type }}</span>
+                        {% endif %}
+                        {% for tag in case.tags or [] %}
+                        <span class="badge badge-tag">{{ tag }}</span>
+                        {% endfor %}
+                    </span>
+                    <span class="case-meta">
+                        {% if 'external' in (case.source or '') %}external{% if case.has_findings %} | {% endif %}{% endif %}
+                        {% if case.has_findings %}
+                        {{ case.indicator_count }} indicators
+                        {% else %}
+                        no findings file
+                        {% endif %}
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            {% if not cases %}
+            <div class="empty-state">
+                <p>No cases found. Sync or process cases first.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="config-grid">
+            <div class="form-group">
+                <label for="primary-key">Primary identifier (subject key)</label>
+                <select id="primary-key">
+                    <option value="{{ primary_case }}">Case Name (one row per case)</option>
+                    {% for item in identifier_types %}
+                    {% if item != primary_case %}
+                    <option value="{{ item }}">{{ item.replace('_', ' ') }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+                <div class="help-text">Each unique primary value becomes one subject row. Other columns link identifiers found in the same case context.</div>
+            </div>
+
+            <div class="form-group">
+                <label>Include cross-case shared links</label>
+                <label class="checkbox-inline">
+                    <input type="checkbox" id="include-cross-links" checked>
+                    Show when subjects share the same secondary identifier
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="section-header">
+                <label>Identifier columns to include</label>
+                <div class="inline-actions">
+                    <button type="button" class="btn btn-sm btn-outline" id="select-all-columns">All</button>
+                    <button type="button" class="btn btn-sm btn-outline" id="clear-all-columns">None</button>
+                </div>
+            </div>
+            <div class="column-grid" id="column-grid">
+                {% for item in identifier_types %}
+                {% if item != primary_case %}
+                <label class="column-item">
+                    <input type="checkbox" name="columns" value="{{ item }}"
+                        {% if item in default_columns %}checked{% endif %}>
+                    <span>{{ item.replace('_', ' ') }}</span>
+                </label>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="preview-btn">
+                <i class="fas fa-eye"></i> Preview Corpus
+            </button>
+            <button type="button" class="btn btn-success" id="export-csv-btn">
+                <i class="fas fa-file-archive"></i> Export CSV Bundle
+            </button>
+            <button type="button" class="btn btn-success" id="export-flat-csv-btn">
+                <i class="fas fa-file-csv"></i> Export Flat CSV
+            </button>
+            <button type="button" class="btn btn-success" id="export-xlsx-btn">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </button>
+            <button type="button" class="btn btn-success" id="export-json-btn">
+                <i class="fas fa-project-diagram"></i> Export JSON Graph
+            </button>
+        </div>
+    </div>
+
+    <div class="card" id="preview-card" style="display: none;">
+        <h2><i class="fas fa-list"></i> Preview</h2>
+        <div id="preview-meta" class="preview-meta"></div>
+        <div class="table-wrap">
+            <table class="data-table" id="preview-subjects-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 2rem;">Sample Identifier Rows</h3>
+        <div class="table-wrap">
+            <table class="data-table" id="preview-flat-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 2rem;">Sample Connections</h3>
+        <div class="table-wrap">
+            <table class="data-table" id="preview-connections-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .corpus-export { max-width: 1400px; margin: 0 auto; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .inline-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .case-grid, .column-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.5rem;
+        max-height: 320px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem;
+        background: #f8fafc;
+    }
+    .case-item, .column-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.6rem 0.75rem;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .case-item:hover, .column-item:hover { border-color: var(--secondary); }
+    .case-name { font-weight: 600; word-break: break-all; }
+    .case-badges { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.25rem 0; }
+    .badge { font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: #e2e8f0; color: #334155; }
+    .badge-tag { background: #dbeafe; color: #1e40af; }
+    .filter-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .case-meta, .help-text { font-size: 0.85rem; color: var(--text-muted); }
+    .config-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+    .checkbox-inline { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .preview-meta { margin-bottom: 1rem; color: var(--text-muted); }
+    .table-wrap { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .data-table th, .data-table td { border: 1px solid var(--border); padding: 0.5rem; text-align: left; vertical-align: top; }
+    .data-table th { background: #eef2f7; }
+    @media (max-width: 900px) { .config-grid, .filter-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const caseFilter = document.getElementById('case-filter');
+    const incidentFilter = document.getElementById('incident-filter');
+    const tagFilter = document.getElementById('tag-filter');
+    const caseGrid = document.getElementById('case-grid');
+    const previewCard = document.getElementById('preview-card');
+
+    function applyCaseFilters() {
+        const term = (caseFilter.value || '').trim().toLowerCase();
+        const incident = (incidentFilter.value || '').trim().toLowerCase();
+        const tag = (tagFilter.value || '').trim().toLowerCase();
+
+        caseGrid.querySelectorAll('.case-item').forEach(function(item) {
+            const name = item.dataset.name || '';
+            const itemIncident = item.dataset.incident || '';
+            const itemTags = (item.dataset.tags || '').split(',').filter(Boolean);
+            const nameMatch = !term || name.includes(term);
+            const incidentMatch = !incident || itemIncident === incident;
+            const tagMatch = !tag || itemTags.includes(tag);
+            item.style.display = (nameMatch && incidentMatch && tagMatch) ? '' : 'none';
+        });
+    }
+
+    caseFilter.addEventListener('input', applyCaseFilters);
+    incidentFilter.addEventListener('change', applyCaseFilters);
+    tagFilter.addEventListener('change', applyCaseFilters);
+
+    function selectedCases() {
+        return Array.from(document.querySelectorAll('input[name="cases"]:checked')).map(el => el.value);
+    }
+
+    function selectedColumns() {
+        return Array.from(document.querySelectorAll('input[name="columns"]:checked')).map(el => el.value);
+    }
+
+    function payload() {
+        return {
+            cases: selectedCases(),
+            primary_key: document.getElementById('primary-key').value,
+            column_types: selectedColumns(),
+            include_cross_links: document.getElementById('include-cross-links').checked
+        };
+    }
+
+    document.getElementById('select-all-cases').addEventListener('click', function() {
+        document.querySelectorAll('input[name="cases"]').forEach(el => { el.checked = true; });
+    });
+
+    document.getElementById('clear-all-cases').addEventListener('click', function() {
+        document.querySelectorAll('input[name="cases"]').forEach(el => { el.checked = false; });
+    });
+
+    document.getElementById('select-filtered-cases').addEventListener('click', function() {
+        caseGrid.querySelectorAll('.case-item').forEach(function(item) {
+            if (item.style.display === 'none') {
+                return;
+            }
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            checkbox.checked = true;
+        });
+    });
+
+    document.getElementById('select-all-columns').addEventListener('click', function() {
+        document.querySelectorAll('input[name="columns"]').forEach(el => { el.checked = true; });
+    });
+
+    document.getElementById('clear-all-columns').addEventListener('click', function() {
+        document.querySelectorAll('input[name="columns"]').forEach(el => { el.checked = false; });
+    });
+
+    function renderTable(tableId, rows) {
+        const table = document.getElementById(tableId);
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        if (!rows || !rows.length) {
+            tbody.innerHTML = '<tr><td>No data</td></tr>';
+            return;
+        }
+
+        const headers = Object.keys(rows[0]);
+        const headRow = document.createElement('tr');
+        headers.forEach(function(key) {
+            const th = document.createElement('th');
+            th.textContent = key;
+            headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            headers.forEach(function(key) {
+                const td = document.createElement('td');
+                const value = row[key];
+                if (Array.isArray(value)) {
+                    td.textContent = value.length ? value.join('; ') : '';
+                } else if (value === null || value === undefined) {
+                    td.textContent = '';
+                } else {
+                    td.textContent = value;
+                }
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('preview-btn').addEventListener('click', async function() {
+        const body = payload();
+        if (!body.cases.length) {
+            alert('Select at least one case.');
+            return;
+        }
+
+        const response = await fetch('/api/corpus/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        if (!data.success) {
+            alert(data.error || 'Preview failed.');
+            return;
+        }
+
+        previewCard.style.display = 'block';
+        const meta = data.meta || {};
+        document.getElementById('preview-meta').textContent =
+            meta.subject_count + ' subjects, ' + (meta.flat_row_count || 0) + ' identifier rows, ' +
+            meta.connection_count + ' connections, ' +
+            (meta.cross_link_count || 0) + ' cross-links from ' + meta.case_count + ' cases.';
+
+        renderTable('preview-subjects-table', data.subjects);
+        renderTable('preview-flat-table', data.flat_rows || []);
+        renderTable('preview-connections-table', data.connections);
+    });
+
+    async function exportCorpus(format) {
+        const body = payload();
+        body.format = format;
+        if (!body.cases.length) {
+            alert('Select at least one case.');
+            return;
+        }
+
+        const response = await fetch('/api/corpus/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            let message = 'Export failed.';
+            try {
+                const err = await response.json();
+                message = err.error || message;
+            } catch (e) {}
+            alert(message);
+            return;
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename=([^;]+)/);
+        const filename = match ? match[1].replace(/"/g, '') : ('revelare_corpus.' + format);
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('export-csv-btn').addEventListener('click', function() { exportCorpus('csv'); });
+    document.getElementById('export-flat-csv-btn').addEventListener('click', function() { exportCorpus('flat_csv'); });
+    document.getElementById('export-xlsx-btn').addEventListener('click', function() { exportCorpus('xlsx'); });
+    document.getElementById('export-json-btn').addEventListener('click', function() { exportCorpus('json'); });
+});
+</script>
+{% endblock %}

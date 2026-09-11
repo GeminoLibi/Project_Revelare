@@ -106,3 +106,72 @@ class DataValidator:
     def get_routing_number_info(routing_number: str) -> Optional[str]:
         from revelare.config.config import Config
         return Config.ROUTING_NUMBERS.get(routing_number)
+
+    _PERSON_NAME_STOPWORDS = {
+        'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august',
+        'september', 'october', 'november', 'december',
+        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+        'north', 'south', 'east', 'west', 'central',
+        'united', 'states', 'america', 'county', 'department', 'bureau', 'office',
+        'court', 'police', 'sheriff', 'district', 'federal', 'national',
+        'international', 'general', 'special', 'senior', 'junior', 'agent', 'officer',
+        'detective', 'investigator', 'attorney', 'counsel', 'manager', 'director',
+        'administrator', 'supervisor', 'services', 'systems', 'solutions', 'company',
+        'corporation', 'limited', 'inc', 'llc', 'ltd', 'group', 'team', 'support',
+        'customer', 'account', 'security', 'privacy', 'policy', 'terms', 'conditions',
+        'copyright', 'reserved', 'true', 'false', 'null', 'none', 'unknown', 'default',
+        'admin', 'user', 'guest', 'system', 'server',
+        'client', 'mobile', 'android', 'iphone', 'windows', 'google', 'microsoft',
+        'apple', 'amazon', 'facebook', 'instagram', 'whatsapp', 'telegram', 'signal',
+        'yahoo', 'outlook', 'gmail', 'hotmail',
+        'new', 'old', 'san', 'los', 'las', 'fort', 'mount', 'saint', 'lake', 'port',
+        'grand', 'little', 'big', 'upper', 'lower',
+        'street', 'road', 'avenue', 'drive', 'lane', 'boulevard', 'place', 'way',
+        'circle', 'parkway', 'highway', 'route', 'box', 'suite', 'floor', 'building',
+        'apartment', 'apt',
+    }
+
+    @staticmethod
+    def is_valid_person_name(name: str) -> bool:
+        """
+        Conservative person-name check: 2-4 title-case words, no org/common false positives.
+        """
+        if not name or len(name) < 5 or len(name) > 80:
+            return False
+        if any(ch.isdigit() for ch in name):
+            return False
+        if name.isupper():
+            return False
+        if '@' in name or '://' in name or '\\' in name:
+            return False
+
+        parts = re.split(r'\s+', name.strip())
+        if len(parts) < 2 or len(parts) > 4:
+            return False
+
+        stopwords = DataValidator._PERSON_NAME_STOPWORDS
+        for part in parts:
+            cleaned = part.strip(".'-")
+            if len(cleaned) < 1:
+                return False
+            if re.match(r"^[A-Z]\.$", part):
+                continue
+            if re.match(r"^[A-Z]$", part):
+                continue
+            if len(cleaned) < 2:
+                return False
+            if not re.match(r"^[A-Z][a-z']*$", part):
+                return False
+            if cleaned.lower() in stopwords:
+                return False
+
+        joined_lower = name.lower()
+        org_markers = (
+            ' department', ' bureau', ' office', ' court', ' police',
+            ' llc', ' inc', ' corporation', ' company', ' university',
+            ' foundation', ' association', ' services', ' systems',
+        )
+        if any(marker in joined_lower for marker in org_markers):
+            return False
+
+        return True

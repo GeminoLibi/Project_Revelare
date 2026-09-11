@@ -24,6 +24,20 @@
                 </select>
             </div>
             <div class="form-group">
+                <label>Case Tags</label>
+                <div class="tag-grid">
+                    {% for tag in case_tags %}
+                    <label class="tag-item">
+                        <input type="checkbox" name="case_tags" value="{{ tag }}">
+                        <span>{{ tag }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <label for="custom_tags" style="margin-top: 0.75rem; display: block;">Additional tags (comma-separated)</label>
+                <input type="text" id="custom_tags" name="custom_tags" placeholder="e.g. bond, subject-alpha">
+                <div class="help-text">Tags help filter cases in Corpus Export and cross-case analysis.</div>
+            </div>
+            <div class="form-group">
                 <label for="investigator_name">Investigator Name *</label>
                 <input type="text" id="investigator_name" name="investigator_name" required placeholder="John Doe">
             </div>
@@ -50,4 +64,22 @@
         </form>
     </div>
 </div>
+<style>
+    .tag-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    .tag-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #f8fafc;
+        cursor: pointer;
+    }
+</style>
 {% endblock %}

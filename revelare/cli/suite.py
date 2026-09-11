@@ -19,6 +19,7 @@ from revelare.config.config import Config
 from revelare.utils.logger import get_logger, RevelareLogger
 from revelare.utils.security import SecurityValidator, InputValidator
 from revelare.core.case_manager import case_manager
+from revelare.core.database import get_db_connection, init_database, update_master_database
 from revelare.core.extractor import run_extraction
 from revelare.utils import reporter
 import revelare.utils.file_extractor as file_extractor
@@ -71,116 +72,6 @@ def open_browser(url: str, delay: float = 1.5) -> None:
     thread = threading.Thread(target=delayed_open)
     thread.daemon = True
     thread.start()
-
-def get_db_connection():
-    return sqlite3.connect(Config.DATABASE)
-
-def init_database() -> bool:
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS indicators (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                indicator_value TEXT NOT NULL,
-                indicator_type TEXT NOT NULL,
-                project_name TEXT NOT NULL,
-                context TEXT,
-                timestamp_str TEXT,
-                position INTEGER,
-                confidence_score REAL,
-                is_relevant INTEGER,
-                source_port TEXT,
-                destination_port TEXT,
-                protocol TEXT,
-                user_agent TEXT,
-                session_id TEXT,
-                UNIQUE(indicator_value, project_name, context) 
-            )
-        ''')
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS projects (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                project_name TEXT UNIQUE NOT NULL,
-                created_at DATETIME NOT NULL,
-                status TEXT DEFAULT 'processing',
-                total_files INTEGER DEFAULT 0,
-                total_findings INTEGER DEFAULT 0,
-                completed_at DATETIME
-            )
-        ''')
-        
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_indicator_value ON indicators (indicator_value)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_project_name ON indicators (project_name)')
-        
-        conn.commit()
-        conn.close()
-        logger.info("Database initialized successfully.")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        return False
-
-def update_master_database(project_name: str, findings: Dict[str, Dict[str, Any]]) -> bool:
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT OR IGNORE INTO projects (project_name, created_at, status, total_findings)
-            VALUES (?, ?, ?, ?)
-        ''', (project_name, datetime.now().isoformat(), 'processing', 0))
-        
-        total_inserted = 0
-        
-        from revelare.utils.data_enhancer import DataEnhancer
-        temp_enhancer = DataEnhancer() 
-        
-        for category, items in findings.items():
-            if category == 'Processing_Summary': continue
-            
-            for value, context in items.items():
-                dummy_indicator = temp_enhancer.create_enhanced_indicator(
-                    indicator=value, category=category, context=context, file_name="DB_RECONSTRUCT", position=0
-                )
-                
-                try:
-                    cursor.execute('''
-                        INSERT OR IGNORE INTO indicators 
-                        (indicator_value, indicator_type, project_name, context, timestamp_str, position, confidence_score, is_relevant, source_port, destination_port, protocol, user_agent, session_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        str(value), str(category), str(project_name), str(context),
-                        str(dummy_indicator.timestamp), int(dummy_indicator.position) if dummy_indicator.position is not None else 0, 
-                        float(dummy_indicator.confidence_score) if dummy_indicator.confidence_score is not None else 0.0, 
-                        int(dummy_indicator.is_relevant) if dummy_indicator.is_relevant is not None else 0,
-                        str(dummy_indicator.source_port) if dummy_indicator.source_port is not None else None, 
-                        str(dummy_indicator.destination_port) if dummy_indicator.destination_port is not None else None, 
-                        str(dummy_indicator.protocol) if dummy_indicator.protocol is not None else None,
-                        str(dummy_indicator.user_agent) if dummy_indicator.user_agent is not None else None, 
-                        str(dummy_indicator.session_id) if dummy_indicator.session_id is not None else None
-                    ))
-                    
-                    if cursor.rowcount > 0: total_inserted += 1
-                except Exception as e:
-                    logger.warning(f"Failed to insert indicator {value} into DB: {e}")
-        
-        cursor.execute('''
-             UPDATE projects SET status=?, total_findings=?, completed_at=? WHERE project_name=?
-        ''', ('completed', total_inserted, datetime.now().isoformat(), project_name))
-        
-        conn.commit()
-        conn.close()
-        
-        logger.info(f"Database update complete. Inserted {total_inserted} new indicators for {project_name}.")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to update database: {e}")
-        return False
 
 @app.route('/global_dashboard')
 def global_dashboard():
@@ -452,10 +343,14 @@ def create_case():
 
     return render_template('create_case.html',
                          incident_types=case_manager.onboard.metadata.INCIDENT_TYPES,
+                         case_tags=case_manager.onboard.metadata.CASE_TAGS,
                          agencies=case_manager.onboard.metadata.AGENCIES,
                          classifications=case_manager.onboard.metadata.CLASSIFICATIONS)
 
-def process_case_background(case_name: str, evidence_files: List[str]):
+def process_case_background(case_name: str, evidence_files: List[str],
+                            audit_sources: Optional[Dict[str, str]] = None,
+                            staging_dir: Optional[str] = None,
+                            origin: str = "local_path"):
     thread_id = threading.current_thread().ident
     active_threads.append(thread_id)
     logger.info(f"Starting background processing for case: {case_name} (thread {thread_id})")
@@ -463,7 +358,9 @@ def process_case_background(case_name: str, evidence_files: List[str]):
         if shutdown_event.is_set():
             logger.info(f"Shutdown requested, aborting processing for {case_name}")
             return
-        success, message = case_manager.process_evidence_files(case_name, evidence_files)
+        success, message = case_manager.process_evidence_files(
+            case_name, evidence_files, audit_sources=audit_sources, origin=origin
+        )
         if success:
             logger.info(f"Background processing completed: {message}")
         else:
@@ -471,9 +368,39 @@ def process_case_background(case_name: str, evidence_files: List[str]):
     except Exception as e:
         logger.error(f"Critical error in background processing for {case_name}: {e}")
     finally:
+        if staging_dir:
+            file_extractor.cleanup_temp_files(staging_dir)
         if thread_id in active_threads:
             active_threads.remove(thread_id)
         logger.info(f"Background processing thread {thread_id} finished")
+
+def _stage_web_uploads(files, case_name: str) -> Tuple[List[str], Dict[str, str], str]:
+    """Save browser uploads to a temp dir for processing. Do not keep a vault copy."""
+    from revelare.utils.file_extractor import mkdtemp_in_script_dir
+    from revelare.core.source_ingest import UPLOAD_SCHEME
+    staging_dir = mkdtemp_in_script_dir(prefix=f"revelare_upload_{case_name}_")
+    evidence_files = []
+    audit_sources = {}
+    for file in files:
+        try:
+            original_name = file.filename or "upload.bin"
+            safe_filename = SecurityValidator.sanitize_filename(original_name)
+            if not safe_filename:
+                logger.warning(f"Skipping file with empty or invalid filename: {file.filename}")
+                continue
+            file_path = os.path.join(staging_dir, safe_filename)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            file.save(file_path)
+            evidence_files.append(file_path)
+            audit_sources[file_path] = UPLOAD_SCHEME + original_name
+            logger.info(f"Staged upload for processing: {original_name}")
+        except Exception as e:
+            logger.error(f"Error staging file {getattr(file, 'filename', '?')}: {e}")
+            continue
+    if not evidence_files:
+        file_extractor.cleanup_temp_files(staging_dir)
+        return [], {}, ""
+    return evidence_files, audit_sources, staging_dir
 
 @app.route('/upload_evidence/<path:case_name>', methods=['GET', 'POST'])
 def upload_evidence(case_name):
@@ -494,25 +421,17 @@ def upload_evidence(case_name):
             flash(f"Case '{case_name}' not found.", "error")
             return redirect(url_for('home'))
 
-        evidence_files = []
-        for file in files:
-            try:
-                safe_filename = SecurityValidator.sanitize_filename(file.filename)
-                file_path = os.path.join(case_path, 'evidence', safe_filename)
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                # Stream large files to disk instead of loading into memory
-                file.save(file_path)
-                evidence_files.append(file_path)
-            except Exception as e:
-                logger.error(f"Error saving file {file.filename}: {e}")
-                flash(f"Error saving file {file.filename}: {str(e)}", "error")
-                continue
+        evidence_files, audit_sources, staging_dir = _stage_web_uploads(files, case_name)
 
         if not evidence_files:
             flash("No files were successfully saved. Please check the file selections and try again.", "error")
             return redirect(url_for('upload_evidence', case_name=case_name))
 
-        thread = threading.Thread(target=process_case_background, args=(case_name, evidence_files))
+        thread = threading.Thread(
+            target=process_case_background,
+            args=(case_name, evidence_files),
+            kwargs={"audit_sources": audit_sources, "staging_dir": staging_dir, "origin": "web_upload"},
+        )
         thread.daemon = True
         thread.start()
         
@@ -542,31 +461,17 @@ def add_files(case_name):
             flash(f"Case '{case_name}' not found", "error")
             return redirect(url_for('home'))
 
-        evidence_files = []
-        for file in valid_files:
-            try:
-                safe_filename = SecurityValidator.sanitize_filename(file.filename)
-                if not safe_filename:
-                    logger.warning(f"Skipping file with empty or invalid filename: {file.filename}")
-                    continue
-                    
-                file_path = os.path.join(case_path, 'evidence', safe_filename)
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                
-                # Stream large files to disk instead of loading into memory
-                file.save(file_path)
-                evidence_files.append(file_path)
-                logger.info(f"Saved file: {safe_filename} to {file_path}")
-            except Exception as e:
-                logger.error(f"Error saving file {file.filename}: {e}")
-                flash(f"Error saving file {file.filename}: {str(e)}", "error")
-                continue
+        evidence_files, audit_sources, staging_dir = _stage_web_uploads(valid_files, case_name)
 
         if not evidence_files:
             flash("No files were successfully saved. Please check the file selections and try again.", "error")
             return redirect(url_for('add_files', case_name=case_name))
 
-        thread = threading.Thread(target=process_case_background, args=(case_name, evidence_files))
+        thread = threading.Thread(
+            target=process_case_background,
+            args=(case_name, evidence_files),
+            kwargs={"audit_sources": audit_sources, "staging_dir": staging_dir, "origin": "web_upload"},
+        )
         thread.daemon = True
         thread.start()
 
@@ -762,17 +667,18 @@ def get_report_data(project_name):
     for category, items in findings.items():
         if category == 'Processing_Summary': continue
         if isinstance(items, dict):
-                for value, context in items.items():
-                    if count >= 10: break
-                    file_source = "Unknown"
-                    if 'File:' in context:
-                        file_source = context.split('File:')[1].split('|')[0].strip()
+            for value, context in items.items():
+                if count >= 10:
+                    break
+                file_source = "Unknown"
+                if 'File:' in context:
+                    file_source = context.split('File:')[1].split('|')[0].strip()
                 recent_indicators.append({
                     'category': category, 'value': value, 'file_source': file_source
                 })
-                
                 count += 1
-        if count >= 10: break
+        if count >= 10:
+            break
 
     # Get list of available exports
     exports_dir = os.path.join(project_path, 'exports')
@@ -1079,6 +985,219 @@ You have access to case data including indicators, file sources, and metadata.""
         logger.error(f"AI Assistant error: {e}")
         return jsonify({"success": False, "error": f"AI service error: {str(e)}"})
 
+@app.route('/case_sync', methods=['GET', 'POST'])
+def case_sync():
+    """Case synchronization interface"""
+    from revelare.utils.unified_manager import UnifiedCaseManager
+    
+    if request.method == 'POST':
+        external_dir = request.form.get('external_dir', r'E:\Cases')
+        process_files = request.form.get('process_files') == 'on'
+        check_duplicates = request.form.get('check_duplicates') == 'on'
+        check_cross_case = request.form.get('check_cross_case') == 'on'
+        
+        try:
+            manager = UnifiedCaseManager(external_dir)
+            results = manager.run_full_sync(
+                process_files=process_files,
+                check_duplicates=check_duplicates,
+                check_cross_case_duplicates=check_cross_case,
+                convert_to_truleo=False
+            )
+            
+            flash(f"Sync complete: {results['sync_stats'].get('cases_discovered', 0)} cases discovered, "
+                  f"{results['sync_stats'].get('cases_created', 0)} created, "
+                  f"{results['sync_stats'].get('files_processed', 0)} files processed", "success")
+            
+            if results.get('duplicate_report') and results['duplicate_report'].get('duplicate_groups', 0) > 0:
+                flash(f"Found {results['duplicate_report']['duplicate_groups']} duplicate file groups - see report", "warning")
+            
+            return redirect(url_for('case_sync'))
+        except Exception as e:
+            flash(f"Sync failed: {str(e)}", "error")
+            logger.error(f"Case sync failed: {e}", exc_info=True)
+    
+    # Get recent sync stats if available
+    sync_stats = {}
+    duplicate_report = None
+    try:
+        from revelare.utils.file_deduplication import find_cross_case_duplicates
+        duplicates = find_cross_case_duplicates(Path(Config.UPLOAD_FOLDER))
+        if duplicates:
+            duplicate_report = {
+                'groups': len(duplicates),
+                'file': str(Path(Config.UPLOAD_FOLDER) / 'duplicate_report.txt')
+            }
+    except Exception:
+        pass
+    
+    return render_template('case_sync.html', sync_stats=sync_stats, duplicate_report=duplicate_report)
+
+@app.route('/check_duplicates', methods=['POST'])
+def check_duplicates():
+    """Check for cross-case duplicates"""
+    from revelare.utils.file_deduplication import find_cross_case_duplicates, format_duplicate_report
+    from pathlib import Path
+    
+    try:
+        duplicates = find_cross_case_duplicates(Path(Config.UPLOAD_FOLDER))
+        if duplicates:
+            report = format_duplicate_report(duplicates)
+            report_file = Path(Config.UPLOAD_FOLDER) / f"duplicate_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            with open(report_file, 'w', encoding='utf-8') as f:
+                f.write(f"Duplicate Report - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(report)
+            
+            flash(f"Found {len(duplicates)} duplicate file groups. Report saved to {report_file.name}", "warning")
+        else:
+            flash("No cross-case duplicates found", "success")
+    except Exception as e:
+        flash(f"Duplicate check failed: {str(e)}", "error")
+        logger.error(f"Duplicate check failed: {e}", exc_info=True)
+    
+    return redirect(url_for('case_sync'))
+
+@app.route('/convert_truleo/<path:case_name>', methods=['POST'])
+def convert_truleo(case_name):
+    """Convert case files to Truleo format"""
+    from revelare.utils.truleo_converter import convert_case_for_truleo
+    
+    try:
+        result = convert_case_for_truleo(case_name)
+        if result.get('success'):
+            flash(f"Conversion complete: {result.get('converted', 0)} files converted, "
+                  f"{result.get('failed', 0)} failed", "success")
+        else:
+            flash(f"Conversion failed: {result.get('error', 'Unknown error')}", "error")
+    except Exception as e:
+        flash(f"Conversion failed: {str(e)}", "error")
+        logger.error(f"Truleo conversion failed: {e}", exc_info=True)
+    
+    return redirect(url_for('case_management', case_name=case_name))
+
+@app.route('/export_case/<path:case_name>', methods=['POST', 'GET'])
+def export_case(case_name):
+    """Export a case in standardized format (full or indicators-only)"""
+    from revelare.utils.case_import_export import CaseExporter
+    
+    try:
+        include_files = request.form.get('include_files', 'true').lower() == 'true'
+        include_extracted = request.form.get('include_extracted', 'true').lower() == 'true'
+        
+        # Default export location
+        exports_dir = os.path.join(Config.UPLOAD_FOLDER, case_name, 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        
+        exporter = CaseExporter()
+        success, message, export_path = exporter.export_case(
+            case_name, 
+            exports_dir,
+            include_files=include_files,
+            include_extracted=include_extracted
+        )
+        
+        if success:
+            filename = os.path.basename(export_path)
+            flash(f"Case exported successfully: {filename}", "success")
+            if request.method == 'POST':
+                return jsonify({
+                    "success": True,
+                    "message": message,
+                    "export_path": export_path,
+                    "filename": filename
+                })
+            return redirect(url_for('case_management', case_name=case_name))
+        else:
+            flash(message, "error")
+            if request.method == 'POST':
+                return jsonify({"success": False, "message": message}), 400
+            return redirect(url_for('case_management', case_name=case_name))
+    except Exception as e:
+        error_msg = f"Export failed: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        flash(error_msg, "error")
+        if request.method == 'POST':
+            return jsonify({"success": False, "message": error_msg}), 500
+        return redirect(url_for('case_management', case_name=case_name))
+
+@app.route('/import_case', methods=['GET', 'POST'])
+def import_case():
+    """Import a case from an exported zip file"""
+    from revelare.utils.case_import_export import CaseImporter
+    
+    if request.method == 'GET':
+        return render_template('import_case.html')
+    
+    try:
+        if 'export_file' not in request.files:
+            flash("No file provided", "error")
+            return redirect(url_for('import_case'))
+        
+        file = request.files['export_file']
+        if file.filename == '':
+            flash("No file selected", "error")
+            return redirect(url_for('import_case'))
+        
+        if not file.filename.endswith('.zip'):
+            flash("Export file must be a .zip file", "error")
+            return redirect(url_for('import_case'))
+        
+        # Save uploaded file temporarily
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
+            file.save(tmp_file.name)
+            tmp_path = tmp_file.name
+        
+        try:
+            target_case_name = request.form.get('case_name', '').strip() or None
+            overwrite = request.form.get('overwrite', 'false').lower() == 'true'
+            
+            importer = CaseImporter()
+            success, message, case_path = importer.import_case(
+                tmp_path,
+                target_case_name=target_case_name,
+                overwrite=overwrite
+            )
+            
+            if success:
+                case_name = os.path.basename(case_path)
+                flash(f"Case '{case_name}' imported successfully", "success")
+                return redirect(url_for('case_management', case_name=case_name))
+            else:
+                flash(message, "error")
+                return redirect(url_for('import_case'))
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+                
+    except Exception as e:
+        error_msg = f"Import failed: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        flash(error_msg, "error")
+        return redirect(url_for('import_case'))
+
+@app.route('/download_case_export/<path:case_name>/<filename>')
+def download_case_export(case_name, filename):
+    """Download an exported case file"""
+    try:
+        exports_dir = os.path.join(Config.UPLOAD_FOLDER, case_name, 'exports')
+        
+        if not os.path.exists(exports_dir):
+            abort(404)
+        
+        # Security: ensure filename doesn't contain path traversal
+        if '..' in filename or '/' in filename or '\\' in filename:
+            abort(400)
+        
+        return send_from_directory(exports_dir, filename, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error downloading case export: {e}")
+        abort(404)
+
 @app.route('/api/report/<project_name>/<data_type>')
 def api_report_data(project_name, data_type):
     project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
@@ -1372,18 +1491,21 @@ def api_report_data(project_name, data_type):
                                 })
             
             # Process other potentially suspicious indicators
-            suspicious_categories = ['Email_Addresses', 'Phone_Numbers', 'Credit_Cards', 'SSN']
+            suspicious_categories = [
+                'Email_Addresses', 'Phone_Numbers', 'Credit_Cards',
+                'Credit_Card_Numbers', 'SSN'
+            ]
             for category, items in findings.items():
                 if category in suspicious_categories and isinstance(items, dict):
-                        for value, context in items.items():
-                            file_source = "Unknown"
+                    for value, context in items.items():
+                        file_source = "Unknown"
                         if 'File:' in context:
                             file_source = context.split('File:')[1].split('|')[0].strip()
-                        
+
                         threat_type = "data_exposure"
-                        severity = "high" if category in ['Credit_Cards', 'SSN'] else "medium"
-                        confidence = 90 if category in ['Credit_Cards', 'SSN'] else 70
-                        
+                        severity = "high" if category in ['Credit_Cards', 'Credit_Card_Numbers', 'SSN'] else "medium"
+                        confidence = 90 if category in ['Credit_Cards', 'Credit_Card_Numbers', 'SSN'] else 70
+
                         data.append({
                             'indicator': value,
                             'type': threat_type,
@@ -1406,6 +1528,145 @@ def api_report_data(project_name, data_type):
             data.append({ 'category': category, 'count': len(items) })
     
     return jsonify({"success": True, data_type: data})
+
+
+@app.route('/corpus_export', methods=['GET'])
+def corpus_export_page():
+    """Cross-case identifier corpus export builder."""
+    try:
+        from revelare.utils.corpus_exporter import CorpusExporter, PRIMARY_CASE
+
+        exporter = CorpusExporter()
+        cases = exporter.discover_cases()
+        identifier_types = exporter.get_available_identifier_types()
+        filter_options = collect_filter_options(cases)
+
+        return render_template(
+            'corpus_export.html',
+            cases=cases,
+            identifier_types=identifier_types,
+            primary_case=PRIMARY_CASE,
+            incident_types=filter_options["incident_types"],
+            case_tag_options=filter_options["case_tags"],
+            default_columns=[
+                t for t in identifier_types if t not in (PRIMARY_CASE,)
+            ][:12],
+        )
+    except Exception as exc:
+        logger.error("Corpus export page failed: %s", exc, exc_info=True)
+        flash("Failed to load corpus export page.", "error")
+        return redirect(url_for('home'))
+
+
+@app.route('/api/corpus/preview', methods=['POST'])
+def api_corpus_preview():
+    """Preview corpus rows before export."""
+    try:
+        from revelare.utils.corpus_exporter import CorpusExporter
+
+        payload = request.get_json(silent=True) or {}
+        case_names = payload.get('cases', [])
+        primary_key = payload.get('primary_key', '__case__')
+        column_types = payload.get('column_types', [])
+        include_cross_links = payload.get('include_cross_links', True)
+
+        if not case_names:
+            return jsonify({"success": False, "error": "Select at least one case."}), 400
+
+        exporter = CorpusExporter()
+        corpus = exporter.build_export_bundle(
+            case_names=case_names,
+            primary_key=primary_key,
+            column_types=column_types,
+            include_cross_links=include_cross_links,
+        )
+
+        preview_subjects = corpus['subjects'][:50]
+        preview_connections = corpus['connections'][:100]
+        preview_flat = corpus.get('flat_rows', [])[:100]
+
+        return jsonify({
+            "success": True,
+            "meta": corpus['meta'],
+            "subjects": preview_subjects,
+            "connections": preview_connections,
+            "flat_rows": preview_flat,
+            "cross_links": corpus.get('cross_links', [])[:50],
+        })
+    except Exception as exc:
+        logger.error("Corpus preview failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route('/api/corpus/export', methods=['POST'])
+def api_corpus_export():
+    """Export corpus in CSV bundle, Excel, or JSON format."""
+    try:
+        from revelare.utils.corpus_exporter import CorpusExporter
+
+        payload = request.get_json(silent=True) or {}
+        case_names = payload.get('cases', [])
+        primary_key = payload.get('primary_key', '__case__')
+        column_types = payload.get('column_types', [])
+        export_format = payload.get('format', 'csv').lower()
+        include_cross_links = payload.get('include_cross_links', True)
+
+        if not case_names:
+            return jsonify({"success": False, "error": "Select at least one case."}), 400
+
+        exporter = CorpusExporter()
+        corpus = exporter.build_export_bundle(
+            case_names=case_names,
+            primary_key=primary_key,
+            column_types=column_types,
+            include_cross_links=include_cross_links,
+        )
+
+        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        case_tag = f"{len(case_names)}cases"
+
+        if export_format == 'json':
+            content = exporter.export_json(corpus)
+            filename = f"revelare_corpus_{case_tag}_{stamp}.json"
+            return Response(
+                content,
+                mimetype='application/json',
+                headers={'Content-Disposition': f'attachment; filename={filename}'},
+            )
+
+        if export_format == 'xlsx':
+            try:
+                content = exporter.export_excel(corpus)
+            except RuntimeError as exc:
+                return jsonify({"success": False, "error": str(exc)}), 500
+            filename = f"revelare_corpus_{case_tag}_{stamp}.xlsx"
+            return Response(
+                content,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                headers={'Content-Disposition': f'attachment; filename={filename}'},
+            )
+
+        if export_format == 'flat_csv':
+            content = exporter.export_csv(corpus.get('flat_rows', []))
+            filename = f"revelare_identifiers_{case_tag}_{stamp}.csv"
+            return Response(
+                content,
+                mimetype='text/csv',
+                headers={'Content-Disposition': f'attachment; filename={filename}'},
+            )
+
+        content = exporter.export_csv_bundle(corpus)
+        filename = f"revelare_corpus_{case_tag}_{stamp}.zip"
+        return Response(
+            content,
+            mimetype='application/zip',
+            headers={'Content-Disposition': f'attachment; filename={filename}'},
+        )
+
+    except Exception as exc:
+        logger.error("Corpus export failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
 
 def launch_web_app():
     if not init_database():

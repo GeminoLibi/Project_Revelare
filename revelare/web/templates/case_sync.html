@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Case Synchronization{% endblock %}
+
+{% block content %}
+<div class="case-sync">
+    <div class="page-header">
+        <h1><i class="fas fa-sync-alt"></i> Case Synchronization</h1>
+        <p>Discover, sync, and manage cases from external directories</p>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-folder-open"></i> Synchronize Cases</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('case_sync') }}">
+                <div class="form-group">
+                    <label for="external_dir">External Cases Directory:</label>
+                    <input type="text" id="external_dir" name="external_dir" 
+                           value="{{ request.form.get('external_dir', 'E:\\Cases') }}" 
+                           class="form-control" required>
+                    <small class="form-text text-muted">Path to external cases directory (e.g., E:\Cases)</small>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="process_files" name="process_files" 
+                               class="form-check-input" checked>
+                        <label class="form-check-label" for="process_files">
+                            Process new files found
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="check_duplicates" name="check_duplicates" 
+                               class="form-check-input" checked>
+                        <label class="form-check-label" for="check_duplicates">
+                            Check for duplicates before adding files
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="check_cross_case" name="check_cross_case" 
+                               class="form-check-input" checked>
+                        <label class="form-check-label" for="check_cross_case">
+                            Check for cross-case duplicates after sync
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sync"></i> Start Synchronization
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if duplicate_report %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2><i class="fas fa-exclamation-triangle"></i> Duplicate Detection</h2>
+        </div>
+        <div class="card-body">
+            <p><strong>Status:</strong> Found {{ duplicate_report.groups }} duplicate file groups</p>
+            {% if duplicate_report.file %}
+            <p><strong>Report:</strong> <code>{{ duplicate_report.file }}</code></p>
+            {% endif %}
+            <form method="POST" action="{{ url_for('check_duplicates') }}" style="display: inline;">
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-search"></i> Re-check for Duplicates
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2><i class="fas fa-info-circle"></i> About Case Synchronization</h2>
+        </div>
+        <div class="card-body">
+            <p>The case synchronization system:</p>
+            <ul>
+                <li><strong>Discovers</strong> cases in external directories (supports nested structures)</li>
+                <li><strong>Creates</strong> new cases automatically in Project Revelare</li>
+                <li><strong>Detects duplicates</strong> using quick hash (size+mtime) and full hash (SHA256)</li>
+                <li><strong>Processes</strong> new files incrementally (only new files are processed)</li>
+                <li><strong>Flags</strong> duplicate files across different cases for review</li>
+            </ul>
+            <p><strong>Note:</strong> For scheduled synchronization, use <code>schedule_case_sync.py</code> with Windows Task Scheduler.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

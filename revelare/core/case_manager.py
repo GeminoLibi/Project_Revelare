@@ -1,7 +1,5 @@
 import os
 import json
-import shutil
-import tempfile
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 from datetime import datetime
@@ -26,12 +24,15 @@ class CaseManager:
 
     def create_case_via_onboarding(self, case_number: str, incident_type: str,
                                  investigator_info: Dict, agency_info: Dict,
-                                 classification_info: Dict) -> Tuple[bool, str, Optional[str]]:
+                                 classification_info: Dict,
+                                 case_tags: Optional[List[str]] = None) -> Tuple[bool, str, Optional[str]]:
         try:
+            from revelare.core.case_taxonomy import parse_tags_input
             case_info = {
                 "case_number": case_number,
                 "incident_type": incident_type,
                 "description": "",
+                "tags": parse_tags_input(case_tags or []),
                 "incident_date": datetime.now().strftime('%Y-%m-%d'),
                 "created_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
@@ -55,7 +56,9 @@ class CaseManager:
             return False, error_msg, None
 
     def process_evidence_files(self, project_name: str, evidence_files: List[str],
-                             callback: Optional[callable] = None) -> Tuple[bool, str]:
+                             callback: Optional[callable] = None,
+                             audit_sources: Optional[Dict[str, str]] = None,
+                             origin: str = "local_path") -> Tuple[bool, str]:
         case_logger.info(f"Starting process_evidence_files for project: {project_name} with {len(evidence_files)} evidence files")
         try:
             project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
@@ -66,38 +69,33 @@ class CaseManager:
                 return False, f"Project directory not found: {project_path}"
 
             from revelare.utils.file_extractor import mkdtemp_in_script_dir
+            from revelare.core.source_ingest import (
+                ARCHIVE_EXTENSIONS,
+                clear_source_registry,
+                stage_sources_to_temp,
+                write_ingest_manifest,
+            )
             extract_path = mkdtemp_in_script_dir(prefix=f"revelare_{project_name}_extract_")
             case_logger.info(f"Created temp directory: {extract_path}")
+            clear_source_registry()
 
             try:
-                for evidence_file in evidence_files:
-                    # Skip if file is already in extracted_files (it's already been extracted)
-                    if 'extracted_files' in evidence_file:
-                        # For reanalysis, copy extracted files directly to temp directory
-                        rel_path = os.path.relpath(evidence_file, os.path.join(Config.UPLOAD_FOLDER, project_name, 'extracted_files'))
-                        dest_path = os.path.join(extract_path, rel_path)
-                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                        shutil.copy2(evidence_file, dest_path)
-                    elif os.path.isfile(evidence_file):
-                        # Original evidence files - extract if archive, copy if regular file
-                        if evidence_file.lower().endswith(('.zip', '.rar', '.7z')):
-                            file_extractor.safe_extract_archive(evidence_file, extract_path)
-                        else:
-                            shutil.copy2(evidence_file, os.path.join(extract_path, os.path.basename(evidence_file)))
-                    elif os.path.isdir(evidence_file):
-                        # Directory - copy all files recursively
-                        for root, dirs, files in os.walk(evidence_file):
-                            for file in files:
-                                src_path = os.path.join(root, file)
-                                rel_path = os.path.relpath(src_path, evidence_file)
-                                dest_path = os.path.join(extract_path, rel_path)
-                                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                                shutil.copy2(src_path, dest_path)
+                # Stage a TEMP copy only. Original source path is recorded for audit.
+                # Do not keep a permanent duplicate under evidence/ or extracted_files/.
+                ingest_records = stage_sources_to_temp(
+                    evidence_files,
+                    extract_path,
+                    audit_sources=audit_sources,
+                    origin=origin,
+                )
 
                 if callback:
                     callback("Starting extraction...")
                 
-                temp_files = [str(p) for p in Path(extract_path).rglob('*') if p.is_file()]
+                temp_files = [
+                    str(p) for p in Path(extract_path).rglob('*')
+                    if p.is_file() and p.suffix.lower() not in ARCHIVE_EXTENSIONS
+                ]
                 case_logger.info(f"Found {len(temp_files)} files to process in temp directory")
                 
                 # Log file type breakdown for debugging
@@ -110,15 +108,10 @@ class CaseManager:
                 findings = run_extraction(temp_files)
                 case_logger.info(f"run_extraction completed, found {len(findings)} finding categories")
 
-                from revelare.cli.suite import update_master_database
+                from revelare.core.database import update_master_database
                 update_master_database(project_name, findings)
 
-                extracted_files_dir = os.path.join(project_path, "extracted_files")
-                Path(extracted_files_dir).mkdir(exist_ok=True)
-
-                if callback:
-                    callback("Organizing files...")
-                file_extractor.extract_and_rename_files(extract_path, project_name, extracted_files_dir)
+                write_ingest_manifest(project_path, ingest_records)
 
                 with open(os.path.join(project_path, 'raw_findings.json'), 'w', encoding='utf-8') as f:
                     json.dump(findings, f, indent=4, ensure_ascii=False)
@@ -141,16 +134,16 @@ class CaseManager:
                 except Exception as e:
                     case_logger.warning(f"Failed to export portable report package: {e}")
 
-                file_extractor.cleanup_temp_files(extract_path)
-
                 case_logger.info(f"Evidence processing completed for {project_name}")
                 return True, f"Processing completed successfully for {project_name}"
 
             except Exception as e:
-                file_extractor.cleanup_temp_files(extract_path)
                 error_msg = f"Processing failed: {str(e)}"
                 case_logger.error(error_msg)
                 return False, error_msg
+            finally:
+                file_extractor.cleanup_temp_files(extract_path)
+                clear_source_registry()
 
         except Exception as e:
             error_msg = f"Evidence processing setup failed: {str(e)}"
@@ -472,28 +465,44 @@ class CaseManager:
 
     def get_evidence_files_for_case(self, case_name: str) -> List[str]:
         """
-        Get all evidence files for a case, including both original evidence
-        and already-extracted files.
+        Get files that can be re-processed for a case.
+
+        New ingest records original source paths in ingest_manifest.json and does
+        not keep vault copies. Legacy cases may still have files under evidence/
+        or extracted_files/; those copies are not deleted.
         """
         try:
             case_path = os.path.join(Config.UPLOAD_FOLDER, case_name)
             evidence_files = []
+            seen = set()
+
+            def _add(path: str) -> None:
+                norm = os.path.normcase(os.path.abspath(path))
+                if norm in seen:
+                    return
+                if os.path.isfile(path):
+                    seen.add(norm)
+                    evidence_files.append(path)
+
+            from revelare.core.source_ingest import source_paths_from_manifest
+            for source_path in source_paths_from_manifest(case_path):
+                _add(source_path)
             
-            # Check evidence directory (original uploaded files)
+            # Legacy vault copies (original uploaded files)
             evidence_dir = os.path.join(case_path, 'evidence')
             if os.path.exists(evidence_dir):
                 for root, dirs, files in os.walk(evidence_dir):
                     for file in files:
-                        evidence_files.append(os.path.join(root, file))
+                        _add(os.path.join(root, file))
             
-            # Also check extracted_files directory (files already extracted from archives)
+            # Legacy extracted_files directory
             extracted_files_dir = os.path.join(case_path, 'extracted_files')
             if os.path.exists(extracted_files_dir):
                 for root, dirs, files in os.walk(extracted_files_dir):
                     for file in files:
-                        evidence_files.append(os.path.join(root, file))
+                        _add(os.path.join(root, file))
             
-            case_logger.info(f"Found {len(evidence_files)} total files for reanalysis (evidence: {len([f for f in evidence_files if 'evidence' in f])}, extracted: {len([f for f in evidence_files if 'extracted_files' in f])})")
+            case_logger.info(f"Found {len(evidence_files)} total files for reanalysis")
             return evidence_files
         except Exception as e:
             case_logger.error(f"Failed to get evidence files for case {case_name}: {e}")

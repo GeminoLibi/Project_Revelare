@@ -24,6 +24,7 @@ class Config:
     PORT = int(os.environ.get('REVELARE_PORT', '5000'))
     
     UPLOAD_FOLDER = os.environ.get('REVELARE_UPLOAD_FOLDER', os.path.join(os.path.dirname(__file__), '..', '..', 'cases'))
+    _DEFAULT_EXTERNAL_CASES_DIR = r'E:\Cases\Gov_impers'
     MAX_CONTENT_LENGTH = None  # No limit - set to None to allow unlimited file sizes
     BINARY_CHUNK_SIZE = int(os.environ.get('REVELARE_BINARY_CHUNK_SIZE', '8192'))
     
@@ -122,7 +123,7 @@ class Config:
         # --- Device Identifiers ---
         'Device_IDs_UUIDs': r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1345][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b',
         'MAC_Addresses': r'\b(?<![\da-fA-F])([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})(?![\da-fA-F])\b',
-        'User_Agents': r'\bUser-Agent\s*:\s*[^\r\n]{20,}\b'
+        'User_Agents': r'\bUser-Agent\s*:\s*[^\r\n]{20,}\b',
     }
 
     FILTER_PATTERNS = {
@@ -149,6 +150,15 @@ class Config:
             r'server\.com',
             r'test\.com',
             r'yourdomain\.com'
+        ],
+        'False_Positive_Person_Names': [
+            r'^(?:January|February|March|April|May|June|July|August|September|October|November|December)$',
+            r'^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$',
+            r'^(?:North|South|East|West|Central)$',
+            r'^(?:United|States|America|County|Department|Bureau|Office|Court|Police|Sheriff|District|Federal|National|International|General|Special|Senior|Junior|Agent|Officer|Detective|Investigator|Attorney|Counsel|Manager|Director|Administrator|Supervisor|Services|Systems|Solutions|Company|Corporation|Limited|Inc|LLC|Ltd|Group|Team|Support|Customer|Account|Security|Privacy|Policy|Terms|Conditions|Copyright|Reserved|All Rights)$',
+            r'^(?:True|False|Null|None|Unknown|Default|Sample|Example|Test|Admin|User|Guest|System|Server|Client|Mobile|Android|iPhone|Windows|Google|Microsoft|Apple|Amazon|Facebook|Instagram|WhatsApp|Telegram|Signal|Yahoo|Outlook|Gmail|Hotmail)$',
+            r'^(?:New|Old|San|Los|Las|Fort|Mount|Saint|St|Lake|Port|Grand|Little|Big|Upper|Lower)$',
+            r'^(?:Street|Road|Avenue|Drive|Lane|Boulevard|Court|Place|Way|Circle|Parkway|Highway|Route|Box|Suite|Floor|Building|Apt|Apartment)$',
         ]
     }
 
@@ -162,6 +172,16 @@ class Config:
         'audio': ['.mp3', '.wav', '.flac'],
         'video': ['.mp4', '.avi', '.mkv', '.mov']
     }
+
+    @classmethod
+    def get_external_cases_dirs(cls) -> List[str]:
+        """Comma-separated EXTERNAL_CASES_DIRS env var, or Gov_impers if present."""
+        env_val = os.environ.get('EXTERNAL_CASES_DIRS', '').strip()
+        if env_val:
+            return [item.strip() for item in env_val.split(',') if item.strip()]
+        if os.path.isdir(cls._DEFAULT_EXTERNAL_CASES_DIR):
+            return [cls._DEFAULT_EXTERNAL_CASES_DIR]
+        return []
 
     @classmethod
     def validate_config(cls) -> List[str]:

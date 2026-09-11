@@ -29,7 +29,7 @@ from revelare.core.extractor import run_extraction
 from revelare.utils import reporter
 import revelare.utils.file_extractor as file_extractor
 from revelare.core.case_manager import case_manager
-from revelare.utils.string_search import StringSearchTool
+from revelare.utils.string_search import StringSearchEngine
 from revelare.utils.email_browser import EmailBrowser
 from revelare.utils.fractal_encryption import FractalEncryption
 
@@ -44,7 +44,7 @@ cli_logger = RevelareLogger.get_logger('enhanced_cli')
 class EnhancedCLI:
     def __init__(self):
         self.case_manager = case_manager
-        self.string_search = StringSearchTool()
+        self.string_search = StringSearchEngine(logger)
         self.email_browser = EmailBrowser()
         self.fractal_encryption = FractalEncryption()
         
@@ -409,9 +409,24 @@ class EnhancedCLI:
             
         print(f"\nSearching for: {', '.join(terms)}")
         print("This may take some time...")
-        
-        # Implementation would use StringSearchTool
-        print("✓ Search completed. Results would be displayed here.")
+
+        all_results = []
+        for search_dir in search_dirs:
+            results = self.string_search.search_directory(search_dir, terms)
+            all_results.extend(results)
+
+        if not all_results:
+            print("No matches found.")
+            return
+
+        output_dir = os.path.join(Config.UPLOAD_FOLDER, "exports")
+        os.makedirs(output_dir, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(output_dir, f"string_search_{stamp}.csv")
+        self.string_search.save_results_to_csv(all_results, output_path)
+
+        print(f"Search complete: {len(all_results)} matches.")
+        print(f"Results saved to: {output_path}")
         
     def email_analysis_menu(self):
         """Email analysis submenu"""
@@ -479,16 +494,19 @@ class EnhancedCLI:
         print(f"  Platform: {sys.platform}")
         print(f"  Upload Folder: {Config.UPLOAD_FOLDER}")
         print(f"  Database: {Config.DATABASE}")
-        print(f"  Max File Size: {Config.MAX_CONTENT_LENGTH / (1024*1024):.1f} MB")
+        if Config.MAX_CONTENT_LENGTH is None:
+            print("  Max File Size: Unlimited")
+        else:
+            print(f"  Max File Size: {Config.MAX_CONTENT_LENGTH / (1024*1024):.1f} MB")
         
         # Check database
         if os.path.exists(Config.DATABASE):
             try:
                 conn = sqlite3.connect(Config.DATABASE)
                 cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM findings")
+                cursor.execute("SELECT COUNT(*) FROM indicators")
                 count = cursor.fetchone()[0]
-                print(f"  Database Records: {count}")
+                print(f"  Database Indicators: {count}")
                 conn.close()
             except Exception as e:
                 print(f"  Database Error: {e}")

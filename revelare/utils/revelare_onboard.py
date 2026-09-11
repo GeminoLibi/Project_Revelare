@@ -2,7 +2,6 @@ import os
 import sys
 import json
 import glob
-import shutil
 import datetime
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -10,6 +9,7 @@ from pathlib import Path
 from revelare.utils.logger import get_logger, RevelareLogger
 from revelare.utils.security import SecurityValidator
 from revelare.config.config import Config
+from revelare.core.case_taxonomy import CASE_TAGS
 
 onboard_logger = RevelareLogger.get_logger('onboarding')
 
@@ -19,6 +19,7 @@ class RevelareMetadata:
         "Burglary", "Theft", "Fraud", "Identity Theft", "Cyber Crime", "Drug Trafficking", 
         "Financial Crime", "Public Corruption", "Missing Person", "Terrorism", "Other"
     ]
+    CASE_TAGS = CASE_TAGS
     AGENCIES = [
         "FBI", "CISA", "NSA", "DHS", "Secret Service", "DEA", "State Police", 
         "County Sheriff's Office", "City Police Department", "Other"
@@ -74,11 +75,16 @@ class RevelareOnboard:
         case_number = self._get_validated_input("Case Number: ")
         selected_incident = self._get_choice_from_list(self.metadata.INCIDENT_TYPES, "Incident Type")
         incident_description = self._get_validated_input("Incident Description (optional): ", required=False)
+        print("\nCase tags (optional, comma-separated). Suggestions:", ", ".join(self.metadata.CASE_TAGS[:8]), "...")
+        raw_tags = self._get_validated_input("Tags: ", required=False)
+        from revelare.core.case_taxonomy import parse_tags_input
+        tags = parse_tags_input([], raw_tags)
         
         return {
             "case_number": case_number,
             "incident_type": selected_incident,
             "description": incident_description,
+            "tags": tags,
             "created_date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
 
@@ -128,7 +134,6 @@ class RevelareOnboard:
         print("Enter source file paths (wildcards * and ? are supported).")
         
         evidence_files_source = []
-        evidence_dir = os.path.join(project_dir, "evidence")
         
         while True:
             file_input = input("Evidence file path (or 'done'): ").strip()
@@ -143,24 +148,16 @@ class RevelareOnboard:
         
         new_evidence_paths = []
         if evidence_files_source:
-            self.log.info(f"Copying {len(evidence_files_source)} files to {evidence_dir}")
+            self.log.info(f"Recording {len(evidence_files_source)} source paths (no permanent copy)")
             
             for i, file_path in enumerate(evidence_files_source, 1):
                 try:
-                    if not os.path.isfile(file_path): continue
-                    filename = os.path.basename(file_path)
-                    dest_path = os.path.join(evidence_dir, filename)
-                    
-                    counter = 1
-                    while os.path.exists(dest_path):
-                        name, ext = os.path.splitext(filename)
-                        dest_path = os.path.join(evidence_dir, f"{name}_{counter}{ext}")
-                        counter += 1
-                        
-                    shutil.copy2(file_path, dest_path)
-                    new_evidence_paths.append(dest_path)
-                    print(f"  [{i:2d}] Copied {filename} -> {os.path.basename(dest_path)}")
+                    if not os.path.isfile(file_path):
+                        continue
+                    abs_path = os.path.abspath(file_path)
+                    new_evidence_paths.append(abs_path)
+                    print(f"  [{i:2d}] Source recorded (no vault copy): {abs_path}")
                 except Exception as e:
-                    self.log.error(f"Failed to copy {file_path}: {e}")
+                    self.log.error(f"Failed to record source {file_path}: {e}")
         
         return new_evidence_paths

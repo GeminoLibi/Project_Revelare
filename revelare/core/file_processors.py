@@ -55,64 +55,108 @@ class TextFileProcessor(FileProcessor):
             from revelare.utils.financial_validators import deobfuscate_text
             content = deobfuscate_text(content)
 
-            return self._find_matches_in_text(content, file_name)
+            return self._find_matches_in_text(content, file_name, file_path=file_path)
         except Exception as e:
             self.logger.error(f"Unexpected error processing text file {file_path}: {e}")
             return {}
 
-    def _find_matches_in_text(self, text: str, file_name: str) -> Dict[str, Dict[str, str]]:
-        findings = {}
+    def _find_matches_in_text(self, text: str, file_name: str, file_path: Optional[str] = None) -> Dict[str, Dict[str, str]]:
+        findings: Dict[str, Dict[str, str]] = {}
         if not text or not isinstance(text, str):
             self.logger.warning(f"Invalid text type for {file_name}")
             return findings
 
         max_text_size = getattr(Config, 'MAX_TEXT_SIZE_FOR_PROCESSING', 50 * 1024 * 1024)
-        chunk_overlap = 1000  # Overlap between chunks to avoid missing indicators at boundaries
-        
-        if not hasattr(self, '_compiled_patterns_cache'):
-            self._compiled_patterns_cache = {}
-            for category, pattern in Config.REGEX_PATTERNS.items():
-                try:
-                    self._compiled_patterns_cache[category] = re.compile(pattern, re.IGNORECASE | re.MULTILINE)
-                except re.error as e:
-                    self.logger.error(f"Invalid regex pattern for {category}: {e}")
-                    continue
-        
-        compiled_patterns = self._compiled_patterns_cache
-        
-        # Process in chunks if file is too large
+        chunk_overlap = 1000
+
         if len(text) > max_text_size:
-            self.logger.info(f"Text too large for {file_name} ({len(text)} bytes), processing in chunks")
-            total_chunks = (len(text) + max_text_size - 1) // max_text_size
-            chunk_num = 0
-            
+            self.logger.info(
+                f"Text too large for {file_name} ({len(text)} bytes), processing in chunks"
+            )
             for chunk_start in range(0, len(text), max_text_size - chunk_overlap):
                 chunk_end = min(chunk_start + max_text_size, len(text))
                 chunk_text = text[chunk_start:chunk_end]
-                chunk_offset = chunk_start
-                chunk_num += 1
-                
-                if chunk_num % 10 == 0:
-                    self.logger.debug(f"Processing chunk {chunk_num}/{total_chunks} of {file_name}")
-                
-                # Process this chunk
-                chunk_findings = self._process_text_chunk(
-                    chunk_text, file_name, chunk_offset, compiled_patterns
-                )
-                
-                # Merge findings (deduplicate by indicator value)
+                chunk_findings = self._find_matches_in_text(chunk_text, file_name, file_path=file_path)
                 for category, items in chunk_findings.items():
                     findings.setdefault(category, {}).update(items)
-        else:
-            # Process entire file at once
-            findings = self._process_text_chunk(text, file_name, 0, compiled_patterns)
-        
+            return findings
+
+        from revelare.core.provider_segmentation import segment_provider_text
+
+        segments, multi_account_risk = segment_provider_text(file_name, text)
+        for segment in segments:
+            segment_anchor = segment.anchor_phone or segment.anchor_email
+            chunk_findings = self._process_text_chunk(
+                segment.text,
+                file_name,
+                0,
+                None,
+                segment_id=segment.segment_id if multi_account_risk else None,
+                segment_anchor=segment_anchor if multi_account_risk else None,
+                multi_account_risk=multi_account_risk,
+                provider=segment.provider,
+                file_path=file_path,
+            )
+            for category, items in chunk_findings.items():
+                findings.setdefault(category, {}).update(items)
+
         return findings
     
-    def _process_text_chunk(self, text: str, file_name: str, offset: int, 
-                           compiled_patterns: Dict[str, re.Pattern]) -> Dict[str, Dict[str, str]]:
-        """Process a chunk of text and return findings"""
-        findings = {}
+    def _append_segment_context(
+        self,
+        context_parts: List[str],
+        segment_id: Optional[str],
+        segment_anchor: Optional[str],
+        multi_account_risk: bool,
+        provider: Optional[str],
+    ) -> None:
+        if provider:
+            context_parts.append(f"Provider: {provider}")
+        if segment_id:
+            context_parts.append(f"Segment: {segment_id}")
+        if segment_anchor:
+            context_parts.append(f"SegmentAnchor: {segment_anchor}")
+        if multi_account_risk:
+            context_parts.append("MultiAccountRisk: true")
+
+    def _process_text_chunk(
+        self,
+        text: str,
+        file_name: str,
+        offset: int,
+        compiled_patterns: Optional[Dict[str, re.Pattern]] = None,
+        segment_id: Optional[str] = None,
+        segment_anchor: Optional[str] = None,
+        multi_account_risk: bool = False,
+        provider: Optional[str] = None,
+        file_path: Optional[str] = None,
+    ) -> Dict[str, Dict[str, str]]:
+        """Process a chunk of text and return findings."""
+        findings: Dict[str, Dict[str, str]] = {}
+
+        from revelare.core.subject_extractor import extract_subject_names
+
+        subject_names = extract_subject_names(
+            text,
+            file_name,
+            segment_id=segment_id,
+            segment_anchor=segment_anchor,
+            multi_account_risk=multi_account_risk,
+        )
+        if subject_names:
+            findings.setdefault("Subject_Names", {}).update(subject_names)
+
+        if compiled_patterns is None:
+            if not hasattr(self, '_compiled_patterns_cache'):
+                self._compiled_patterns_cache = {}
+                for category, pattern in Config.REGEX_PATTERNS.items():
+                    try:
+                        self._compiled_patterns_cache[category] = re.compile(
+                            pattern, re.IGNORECASE | re.MULTILINE
+                        )
+                    except re.error as e:
+                        self.logger.error(f"Invalid regex pattern for {category}: {e}")
+            compiled_patterns = self._compiled_patterns_cache
         
         for category, compiled_pattern in compiled_patterns.items():
             seen_indicators = set()
@@ -139,6 +183,8 @@ class TextFileProcessor(FileProcessor):
                         f"File: {file_name}",
                         f"Position: {absolute_position}"
                     ]
+                    from revelare.core.source_ingest import format_source_audit_fields
+                    context_parts.extend(format_source_audit_fields(file_path))
                     
                     if "IP" in category:
                         context_parts.append(f"Type: {DataValidator.classify_ip(indicator)}")
@@ -148,10 +194,17 @@ class TextFileProcessor(FileProcessor):
                         from revelare.utils.financial_validators import validate_and_classify_credit_card
                         validation = validate_and_classify_credit_card(indicator)
                         if not validation['is_valid_luhn']:
-                            # Skip invalid credit card numbers (likely false positives)
                             continue
                         context_parts.append(f"Issuer: {validation['issuer']}")
                         context_parts.append("Luhn: Valid")
+
+                    self._append_segment_context(
+                        context_parts,
+                        segment_id,
+                        segment_anchor,
+                        multi_account_risk,
+                        provider,
+                    )
                     
                     findings.setdefault(category, {})[indicator] = " | ".join(context_parts)
             except Exception as e:
@@ -190,7 +243,7 @@ class DocumentFileProcessor(FileProcessor):
             else:
                 return BinaryFileProcessor().process_file(file_path, file_name)
             
-            return TextFileProcessor()._find_matches_in_text(content, file_name)
+            return TextFileProcessor()._find_matches_in_text(content, file_name, file_path=file_path)
         except Exception as e:
             self.logger.warning(f"Error processing document {file_name}: {e}. Treating as binary.")
             return BinaryFileProcessor().process_file(file_path, file_name)
@@ -210,7 +263,7 @@ class BinaryFileProcessor(FileProcessor):
                         text_chunk = chunk.decode('utf-8', errors='ignore')
                         printable_chunk = ''.join(c for c in text_chunk if c.isprintable() or c.isspace())
                         if printable_chunk.strip():
-                            chunk_findings = TextFileProcessor()._find_matches_in_text(printable_chunk, f"{file_name}_chunk_{chunk_num}")
+                            chunk_findings = TextFileProcessor()._find_matches_in_text(printable_chunk, f"{file_name}_chunk_{chunk_num}", file_path=file_path)
                             for category, items in chunk_findings.items():
                                 findings.setdefault(category, {}).update(items)
                     except Exception as e:
@@ -269,6 +322,11 @@ class ArchiveFileProcessor(FileProcessor):
                              continue
                         
                         # Process the file (text, doc, binary, etc.)
+                        from revelare.core.source_ingest import inherit_member_metadata, lookup_source_meta, register_staged_file
+                        parent_meta = lookup_source_meta(file_path)
+                        if parent_meta:
+                            rel = os.path.relpath(target_path, temp_dir)
+                            register_staged_file(target_path, inherit_member_metadata(parent_meta, rel))
                         process_extracted_file(target_path, findings)
 
         except Exception as e:
@@ -276,6 +334,14 @@ class ArchiveFileProcessor(FileProcessor):
         return findings
 
 class MediaFileProcessor(FileProcessor):
+    def _audit_context(self, file_path: str, file_name: str, extra: str = "") -> str:
+        from revelare.core.source_ingest import format_source_audit_fields
+        parts = [f"File: {file_name}"]
+        parts.extend(format_source_audit_fields(file_path))
+        if extra:
+            parts.append(extra)
+        return " | ".join(parts)
+
     def process_file(self, file_path: str, file_name: str) -> Dict[str, Dict[str, str]]:
         findings = {}
         
@@ -291,27 +357,41 @@ class MediaFileProcessor(FileProcessor):
                 if metadata:
                     # Format metadata as indicators
                     if 'GPS' in metadata:
-                        findings.setdefault('GPS_Coordinates', {})[metadata['GPS']] = f"File: {file_name} | Source: EXIF | Device: {metadata.get('Model', 'Unknown')}"
+                        findings.setdefault('GPS_Coordinates', {})[metadata['GPS']] = self._audit_context(
+                            file_path, file_name, f"Source: EXIF | Device: {metadata.get('Model', 'Unknown')}"
+                        )
                     
                     if 'DateTimeOriginal' in metadata:
-                        findings.setdefault('Timestamps', {})[metadata['DateTimeOriginal']] = f"File: {file_name} | Type: EXIF Creation Date"
+                        findings.setdefault('Timestamps', {})[metadata['DateTimeOriginal']] = self._audit_context(
+                            file_path, file_name, "Type: EXIF Creation Date"
+                        )
                     elif 'DateTime' in metadata:
-                        findings.setdefault('Timestamps', {})[metadata['DateTime']] = f"File: {file_name} | Type: EXIF DateTime"
+                        findings.setdefault('Timestamps', {})[metadata['DateTime']] = self._audit_context(
+                            file_path, file_name, "Type: EXIF DateTime"
+                        )
                     
                     # Store device info
                     if 'Model' in metadata:
                         device_str = f"{metadata.get('Make', '')} {metadata.get('Model', '')}".strip()
                         if device_str:
-                            findings.setdefault('Device_Info', {})[device_str] = f"File: {file_name} | Source: EXIF"
+                            findings.setdefault('Device_Info', {})[device_str] = self._audit_context(
+                                file_path, file_name, "Source: EXIF"
+                            )
                     
                     if 'Software' in metadata:
-                        findings.setdefault('Software_Info', {})[metadata['Software']] = f"File: {file_name} | Source: EXIF"
+                        findings.setdefault('Software_Info', {})[metadata['Software']] = self._audit_context(
+                            file_path, file_name, "Source: EXIF"
+                        )
                     
                     if 'Resolution' in metadata:
-                        findings.setdefault('Image_Resolution', {})[metadata['Resolution']] = f"File: {file_name}"
+                        findings.setdefault('Image_Resolution', {})[metadata['Resolution']] = self._audit_context(
+                            file_path, file_name
+                        )
                     
                     if 'Format' in metadata:
-                        findings.setdefault('Image_Format', {})[metadata['Format']] = f"File: {file_name}"
+                        findings.setdefault('Image_Format', {})[metadata['Format']] = self._audit_context(
+                            file_path, file_name
+                        )
             
             except Exception as e:
                 self.logger.debug(f"Failed to extract EXIF metadata from {file_name}: {e}")

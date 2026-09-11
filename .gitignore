@@ -1,5 +1,6 @@
 # Temporary directories
 temp/
+tmp/
 *.tmp
 
 # Python cache
@@ -11,6 +12,7 @@ __pycache__/
 
 # Virtual environments
 venv/
+.venv/
 env/
 ENV/
 
@@ -23,28 +25,60 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+*.lnk
 
 # Logs
 *.log
 logs/
 clean_log.txt
 
-# Database
+# Secrets
+.env
+.env.*
+!.env.example
+!env.template
+credentials.json
+*.pem
+*.key
+
+# Database / case stores
 *.db
 *.sqlite
 *.sqlite3
+revelare_master.db
 
-# Test directories
-test_export_extract/
-test_export_fixed/
-test_final/
+# Case data, evidence, exports, uploads, PII (NEVER commit)
+cases/
+**/cases/
+evidence/
+**/evidence/
+extracted_files/
+**/extracted_files/
+exports/
+**/exports/
+uploads/
+**/uploads/
+findings/
+**/findings/
+vault/
+**/vault/
+pii/
+**/pii/
+ingest_manifest.json
+**/ingest_manifest.json
 
-# Case data (if sensitive)
-# cases/
+# Local / legacy trees
+_legacy/
+_legacy/**
 
 # GeoIP databases (should be downloaded separately)
+*.mmdb
 GeoLite2-ASN.mmdb
 GeoLite2-City.mmdb
 revelare/GeoLite2-ASN.mmdb
 revelare/GeoLite2-City.mmdb
 
+# Local test scratch dirs
+test_export_extract/
+test_export_fixed/
+test_final/

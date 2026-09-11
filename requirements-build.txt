@@ -1,0 +1,8 @@
+# Build requirements for creating .exe file
+# Install with: pip install -r requirements-build.txt
+
+# PyInstaller for creating standalone executables
+pyinstaller>=5.13.0
+
+# All regular requirements are also needed for building
+-r requirements.txt

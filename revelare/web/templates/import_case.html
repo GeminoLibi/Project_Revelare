@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Import Case{% endblock %}
+
+{% block content %}
+<div class="import-case">
+    <div class="page-header">
+        <h1><i class="fas fa-file-import"></i> Import Case</h1>
+        <p>Import a case from a standardized export file (.zip)</p>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-upload"></i> Upload Export File</h2>
+        
+        <form method="POST" enctype="multipart/form-data" id="importForm">
+            <div class="form-group">
+                <label for="export_file">
+                    <i class="fas fa-file-archive"></i> Export File (.zip)
+                </label>
+                <input type="file" 
+                       id="export_file" 
+                       name="export_file" 
+                       accept=".zip" 
+                       required
+                       class="form-control">
+                <small class="form-text">Select a case export file (.zip format)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="case_name">
+                    <i class="fas fa-tag"></i> Case Name (Optional)
+                </label>
+                <input type="text" 
+                       id="case_name" 
+                       name="case_name" 
+                       placeholder="Leave empty to use original case name"
+                       class="form-control">
+                <small class="form-text">If left empty, the original case name will be used</small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" 
+                           id="overwrite" 
+                           name="overwrite" 
+                           value="true">
+                    Overwrite existing case
+                </label>
+                <small class="form-text">If checked, an existing case with the same name will be replaced</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Import Case
+                </button>
+                <a href="{{ url_for('home') }}" class="btn btn-outline">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-info-circle"></i> Import Information</h2>
+        <ul>
+            <li><strong>Supported formats:</strong> Standardized case export (.zip)</li>
+            <li><strong>Export types:</strong> Full case (with files) or Indicators-only</li>
+            <li><strong>Required files:</strong> case_metadata.json, raw_findings.json</li>
+            <li><strong>Optional files:</strong> Evidence files, extracted files, reports</li>
+        </ul>
+        
+        <h3>Export Types</h3>
+        <ul>
+            <li><strong>Full Export:</strong> Includes all case data, evidence files, and extracted files</li>
+            <li><strong>Indicators-Only:</strong> Contains only extracted indicators and metadata (smaller file size)</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.import-case {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.card ul {
+    margin-left: 1.5rem;
+}
+
+.card ul li {
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}

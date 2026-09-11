@@ -15,6 +15,22 @@
             <form method="post" action="{{ url_for('reanalyze_case', case_name=case_name) }}" style="display: inline;">
                 <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('This will re-analyze all evidence files and may take some time. Continue?')"><i class="fas fa-sync-alt"></i> Re-Analyze All</button>
             </form>
+            <div class="dropdown" style="display: inline-block;">
+                <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="exportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-download"></i> Export Case
+                </button>
+                <div class="dropdown-menu" aria-labelledby="exportDropdown">
+                    <form method="post" action="{{ url_for('export_case', case_name=case_name) }}" style="display: inline;">
+                        <input type="hidden" name="include_files" value="true">
+                        <input type="hidden" name="include_extracted" value="true">
+                        <button type="submit" class="dropdown-item"><i class="fas fa-file-archive"></i> Full Export (with files)</button>
+                    </form>
+                    <form method="post" action="{{ url_for('export_case', case_name=case_name) }}" style="display: inline;">
+                        <input type="hidden" name="include_files" value="false">
+                        <button type="submit" class="dropdown-item"><i class="fas fa-file-code"></i> Indicators Only</button>
+                    </form>
+                </div>
+            </div>
         </div>
         <div class="control-group">
             <input type="text" id="search-input" placeholder="Search files..." class="search-input">
