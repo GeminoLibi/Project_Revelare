@@ -1,114 +1,6 @@
 # Project Revelare
 
-**Digital Forensics and Intelligence Extraction Platform**
-
-Project Revelare is a comprehensive digital forensics tool designed for extracting, analyzing, and reporting on indicators of compromise (IOCs) from various file types and data sources.
-
-## Quick Start
-
-### Installation
-
-**Option 1: Standalone .exe (Windows - Easiest for End Users)**
-
-```batch
-# Build the executable (one-time setup)
-utilities\build_exe.bat
-
-# The executable will be in dist/ProjectRevelare.exe (gitignored)
-# Just double-click to run - no Python or dependencies needed!
-```
-
-See [EXE_BUILD_README.md](EXE_BUILD_README.md) for detailed build instructions.
-
-**Option 2: Docker (Recommended for Easy Sharing)**
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/project_revelare.git
-cd project_revelare
-
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Access at http://localhost:5000
-```
-
-**Option 3: Local Python Installation**
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/project_revelare.git
-cd project_revelare
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up GeoIP databases (optional but recommended)
-# Download GeoLite2-City.mmdb and GeoLite2-ASN.mmdb to project root
-```
-
-### Docker Usage
-
-**Starting the container:**
-```bash
-docker-compose up -d
-```
-
-**Viewing logs:**
-```bash
-docker-compose logs -f
-```
-
-**Stopping the container:**
-```bash
-docker-compose down
-```
-
-**Running CLI commands:**
-```bash
-# Execute CLI commands inside the container
-docker-compose exec revelare python -m revelare.cli.revelare_cli --onboard
-```
-
-**Building the image manually:**
-```bash
-docker build -t project-revelare .
-docker run -p 5000:5000 -v $(pwd)/cases:/app/cases -v $(pwd)/logs:/app/logs project-revelare
-```
-
-### Basic Usage
-
-**Web Interface:**
-```bash
-python start.py
-# Choose option 1: Web Interface
-# Access at http://localhost:5000
-```
-
-**CLI:**
-```bash
-# Create a new case
-python -m revelare.cli.revelare_cli --onboard
-
-# Process files
-python -m revelare.cli.revelare_cli -p "case_001" -f evidence.zip
-
-# Synchronize cases from an external directory
-python -m revelare.cli.revelare_cli --sync "C:\path\to\cases"
-```
-
-## Key Features
-
-- **No permanent document copies**: Ingest stages a temp copy, extracts IOCs, records the original source path/hash, then deletes the temp file. The case vault stores metadata and findings, not a second copy of the document.
-- **Multi-Format Support**: Processes text, documents, emails, archives, images, audio, video, and more
-- **Intelligent Extraction**: Extracts IOCs including IPs, domains, emails, credit cards, crypto addresses, and more
-- **GeoIP Enrichment**: Automatically enriches IP addresses with geographic and ASN data
-- **Case Management**: Full case lifecycle management with metadata tracking
-- **Duplicate Detection**: Hash-based duplicate detection prevents redundant processing
-- **Case Synchronization**: Automatically discover and sync cases from external directories
-- **Report Generation**: Comprehensive HTML reports with interactive dashboards
-- **Export Options**: Export reports as portable packages, JSON, CSV, or warrant formats
-- **Truleo Integration**: Convert files to Truleo-accepted formats for SaaS platforms
+Digital forensics and intelligence extraction: pull indicators of compromise from files and data sources, keep cases as metadata and findings, and leave the original documents where they are.
 
 ## Ingest and audit paths
 
@@ -126,44 +18,87 @@ CSV exports include `SourcePath` and `SourceHash` columns. The SQLite master DB 
 
 **Re-analysis:** for new ingest, re-analysis re-reads the original source path if it still exists. Web-only uploads have no original path, so re-upload to process again.
 
-## Documentation
+## How to run
 
-For detailed documentation, see:
-- **[Full Documentation](docs/README.md)** - Complete user guide and API reference
-- **[Case Synchronization](CASE_SYNC_README.md)** - Case sync and duplicate detection
-- **[Unified System](UNIFIED_SYSTEM_README.md)** - Integrated case management system
-- **[Docker Setup](DOCKER_README.md)** - Docker installation and usage
-- **[Building .exe](EXE_BUILD_README.md)** - Creating standalone Windows executable
+Python 3.8+. Install dependencies with `pip install -r requirements.txt`. GeoLite2-City.mmdb and GeoLite2-ASN.mmdb in the project root are optional (IP enrichment).
 
-## Project Structure
+### Web
+
+```bash
+python start.py
+```
+
+Choose option 1 (Web Interface). Open http://localhost:5000
+
+You can also launch the CLI or onboarding wizard from the same menu.
+
+### CLI
+
+```bash
+# Create a new case
+python -m revelare.cli.revelare_cli --onboard
+
+# Process files
+python -m revelare.cli.revelare_cli -p "case_001" -f evidence.zip
+
+# Sync cases from an external directory
+python -m revelare.cli.revelare_cli --sync "C:\path\to\cases"
+
+# Discover only (do not process files)
+python -m revelare.cli.revelare_cli --sync "C:\path\to\cases" --sync-no-process
+
+# Export / import a case
+python -m revelare.cli.revelare_cli --export-case "case_name"
+python -m revelare.cli.revelare_cli --export-case "case_name" --export-indicators-only
+python -m revelare.cli.revelare_cli --import-case "path\to\export.zip"
+```
+
+Sync tracks processed files in `cases/.case_sync_cache.json` (delete it to force a full resync). Optional env: `REVELARE_EXTERNAL_CASES_DIR`, `REVELARE_SYNC_PROCESS_FILES`.
+
+Web UI also has case import/export (dashboard Import Case; case management Export Case). Full export can include leftover `evidence/` / `extracted_files/` from older cases; indicators-only export is metadata and findings only.
+
+### Docker
+
+```bash
+docker-compose up -d
+# http://localhost:5000
+
+docker-compose logs -f
+docker-compose down
+
+docker-compose exec revelare python -m revelare.cli.revelare_cli --onboard
+```
+
+Volumes: `./cases`, `./logs`, `./temp`. Copy `env.template` to `.env` for port/API keys. If port 5000 is taken, change the mapping in `docker-compose.yml`.
+
+### Windows .exe
+
+```batch
+utilities\build_exe.bat
+```
+
+Output is `dist/ProjectRevelare.exe` (gitignored). Double-click to run; no Python needed on the target machine. Manual: `pyinstaller --clean revelare.spec`.
+
+## What it does
+
+- Stages a temp copy, extracts IOCs, records source path/hash, deletes the temp file
+- Text, documents, email, archives, images, audio, video, and more
+- IPs, domains, emails, cards, crypto addresses, and related indicators
+- Optional GeoIP/ASN enrichment
+- Case lifecycle, hash duplicate detection, external-directory sync
+- HTML reports; JSON/CSV/warrant/portable export; optional Truleo conversion
+
+## Project structure
 
 ```
 project_revelare/
-├── revelare/              # Core package
-│   ├── core/             # Processing engines
-│   ├── cli/              # CLI and web interfaces
-│   ├── utils/            # Utilities (sync, deduplication, conversion)
-│   ├── web/              # Web templates and static files
-│   └── config/           # Configuration
-├── utilities/             # Optional helpers (exe build, batch clean)
-├── docs/                  # Documentation
-└── requirements.txt       # Python dependencies
+  revelare/         core, CLI, web, config
+  utilities/        optional helpers (exe build, batch clean)
+  requirements.txt
 ```
 
-## Requirements
-
-- Python 3.8+
-- See `requirements.txt` for full dependency list
-- GeoLite2 databases (optional) for IP enrichment
-
-## License
-
-See LICENSE file for details.
-
-## Contributing
-
-Contributions welcome! Please see CONTRIBUTING.md for guidelines.
+Case data, logs, temp files, GeoIP DBs, and build output stay out of git (see `.gitignore`).
 
 ## Support
 
-For issues, questions, or contributions, please open an issue on GitHub.
+Open an issue on GitHub: https://github.com/GeminoLibi/Project_Revelare
