@@ -11,13 +11,6 @@ This guide explains how to run Project Revelare using Docker, which eliminates t
 
 ## Quick Start
 
-### Windows Users
-
-Simply double-click `run_docker.bat` or run it from the command prompt:
-```batch
-run_docker.bat
-```
-
 ### All Platforms
 
 Using Docker Compose (recommended):
@@ -119,7 +112,7 @@ To share Project Revelare with others who don't have Python installed:
 
 1. Share the entire project directory (or a zip of it)
 2. They just need Docker installed
-3. They run `run_docker.bat` (Windows) or `docker-compose up -d` (all platforms)
+3. They run `docker-compose up -d`
 4. No Python, pip, or dependency installation needed!
 
 ## Manual Docker Run (without docker-compose)

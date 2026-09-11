@@ -12,9 +12,9 @@ Project Revelare is a comprehensive digital forensics tool designed for extracti
 
 ```batch
 # Build the executable (one-time setup)
-build_exe.bat
+utilities\build_exe.bat
 
-# The executable will be in dist/ProjectRevelare.exe
+# The executable will be in dist/ProjectRevelare.exe (gitignored)
 # Just double-click to run - no Python or dependencies needed!
 ```
 
@@ -93,8 +93,8 @@ python -m revelare.cli.revelare_cli --onboard
 # Process files
 python -m revelare.cli.revelare_cli -p "case_001" -f evidence.zip
 
-# Synchronize cases from external directory
-python -m revelare.cli.revelare_cli --sync "E:\Cases"
+# Synchronize cases from an external directory
+python -m revelare.cli.revelare_cli --sync "C:\path\to\cases"
 ```
 
 ## Key Features
@@ -145,8 +145,7 @@ project_revelare/
 │   ├── utils/            # Utilities (sync, deduplication, conversion)
 │   ├── web/              # Web templates and static files
 │   └── config/           # Configuration
-├── cases/                 # Case directories
-├── logs/                  # Application logs
+├── utilities/             # Optional helpers (exe build, batch clean)
 ├── docs/                  # Documentation
 └── requirements.txt       # Python dependencies
 ```

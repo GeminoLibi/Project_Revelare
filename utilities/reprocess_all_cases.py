@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 # Add project root to sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from revelare.core.case_manager import CaseManager
 from revelare.config.config import Config

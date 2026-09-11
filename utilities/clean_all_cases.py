@@ -6,14 +6,17 @@ This re-validates findings and removes false positives without reprocessing file
 import os
 import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from revelare.core.case_manager import CaseManager
 from revelare.utils.logger import get_logger
 from revelare.config.config import Config
 
 logger = get_logger("case_cleaner")
 
-# Assuming the script is run from the project root
-PROJECT_ROOT = Path(__file__).resolve().parent
 CASES_DIR = Path(Config.UPLOAD_FOLDER)
 
 def clean_all_cases():

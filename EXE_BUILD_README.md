@@ -15,21 +15,10 @@ This guide explains how to package Project Revelare as a Windows executable (.ex
 1. Open a command prompt in the project directory
 2. Run:
    ```batch
-   build_exe.bat
+   utilities\build_exe.bat
    ```
 
-3. The executable will be created in the `dist` folder as `ProjectRevelare.exe`
-
-### Advanced Build Options
-
-For more control over the build process:
-```batch
-build_exe_advanced.bat
-```
-
-This allows you to choose:
-- Console mode (shows console window) or Windowed mode (no console)
-- One-file (single .exe) or One-directory (multiple files, faster startup)
+3. The executable will be created in the `dist` folder as `ProjectRevelare.exe` (that folder is gitignored).
 
 ## Manual Build
 

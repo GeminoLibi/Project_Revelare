@@ -13,44 +13,14 @@ Automatically sync cases from an external directory (e.g., `E:\Cases`) with Proj
 
 ### Manual Sync
 
-Run the interactive sync script:
-
 ```bash
-python run_case_sync.py
+python -m revelare.cli.revelare_cli --sync "C:\path\to\cases"
 ```
 
-Or specify the directory directly:
+To discover cases without processing files:
 
 ```bash
-python run_case_sync.py "E:\Cases"
-```
-
-### Scheduled Sync (Windows Task Scheduler)
-
-1. **Create the scheduled task** (run as Administrator):
-
-```bash
-create_sync_task.bat
-```
-
-This creates a task that runs every Monday at 2:00 AM.
-
-2. **Manual execution** (for testing):
-
-```bash
-schtasks /Run /TN "ProjectRevelare_CaseSync"
-```
-
-3. **View task details**:
-
-```bash
-schtasks /Query /TN "ProjectRevelare_CaseSync" /V /FO LIST
-```
-
-4. **Delete the task**:
-
-```bash
-schtasks /Delete /TN "ProjectRevelare_CaseSync" /F
+python -m revelare.cli.revelare_cli --sync "C:\path\to\cases" --sync-no-process
 ```
 
 ### Programmatic Usage

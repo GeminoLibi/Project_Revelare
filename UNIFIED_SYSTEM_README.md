@@ -46,7 +46,7 @@ Orchestrates all components:
 ### Manual Synchronization
 
 ```bash
-python run_case_sync.py [external_cases_dir]
+python -m revelare.cli.revelare_cli --sync "C:\path\to\cases"
 ```
 
 This will:
@@ -56,16 +56,6 @@ This will:
 4. Process new files found
 5. Check for cross-case duplicates
 6. Generate duplicate report if found
-
-### Scheduled Synchronization
-
-The `schedule_case_sync.py` script is designed to run via Windows Task Scheduler:
-
-```bash
-python schedule_case_sync.py
-```
-
-Or set up via Task Scheduler using `create_sync_task.bat`.
 
 ### Using the Unified Manager Directly
 

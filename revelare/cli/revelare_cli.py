@@ -328,13 +328,13 @@ def main():
     
     if args.reprocess_all:
         print("\n[REPROCESS] Reprocessing all cases...")
-        from reprocess_all_cases import reprocess_all_cases
+        from utilities.reprocess_all_cases import reprocess_all_cases
         reprocess_all_cases()
         return 0
     
     if args.clean_all:
         print("\n[CLEAN] Cleaning false positives from all cases...")
-        from clean_all_cases import clean_all_cases
+        from utilities.clean_all_cases import clean_all_cases
         clean_all_cases()
         return 0
     

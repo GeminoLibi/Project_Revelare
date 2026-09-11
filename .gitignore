@@ -82,3 +82,23 @@ revelare/GeoLite2-City.mmdb
 test_export_extract/
 test_export_fixed/
 test_final/
+
+# PyInstaller / Windows build output (keep machine-local)
+*.exe
+*.msi
+*.dll
+*.pyd
+build/
+dist/
+installer/
+
+# Docker local leftovers
+docker-compose.override.yml
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/

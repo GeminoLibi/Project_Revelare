@@ -1,6 +1,7 @@
 @echo off
 REM Project Revelare - PyInstaller Build Script
 REM This script builds a standalone .exe file
+cd /d "%~dp0.."
 
 echo ========================================
 echo Project Revelare - Executable Builder
