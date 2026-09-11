@@ -27,7 +27,10 @@ def reprocess_all_cases():
     for entry in os.listdir(cases_dir):
         entry_path = os.path.join(cases_dir, entry)
         if os.path.isdir(entry_path):
-            has_findings = os.path.exists(os.path.join(entry_path, 'raw_findings.json'))
+            has_findings = (
+                os.path.exists(os.path.join(entry_path, 'raw_findings.json'))
+                or os.path.exists(os.path.join(entry_path, 'indicators.json'))
+            )
             has_extracted = os.path.exists(os.path.join(entry_path, 'extracted_files'))
             has_manifest = os.path.exists(os.path.join(entry_path, 'ingest_manifest.json'))
             

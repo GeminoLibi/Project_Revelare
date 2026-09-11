@@ -125,6 +125,37 @@ class TestSourceIngest(unittest.TestCase):
             ]
         self.assertEqual(leftovers, [], "temp processing copies must be deleted")
 
+    def test_cli_artifacts_mark_case_complete(self):
+        from revelare.core.case_manager import CaseManager
+        from revelare.core.findings_store import (
+            case_processing_complete,
+            count_findings,
+            load_findings,
+        )
+
+        case_name = "SMOKE_Cli_Artifacts"
+        case_dir = os.path.join(self.cases_dir, case_name)
+        os.makedirs(case_dir, exist_ok=True)
+        findings = {
+            "IPv4": {
+                "203.0.113.50": "File: sample_ioc.txt | SourcePath: %s | SourceHash: abc" % self.fixture
+            }
+        }
+        with open(os.path.join(case_dir, "indicators.json"), "w", encoding="ascii") as handle:
+            json.dump(findings, handle)
+        with open(os.path.join(case_dir, "%s_report.html" % case_name), "w", encoding="ascii") as handle:
+            handle.write("<html></html>")
+
+        self.assertTrue(case_processing_complete(case_dir, case_name))
+        self.assertEqual(count_findings(load_findings(case_dir)), 1)
+
+        cases = CaseManager().get_available_cases()
+        match = [item for item in cases if item["name"] == case_name]
+        self.assertEqual(len(match), 1)
+        self.assertTrue(match[0]["is_complete"])
+        self.assertTrue(match[0]["has_report"])
+        self.assertEqual(match[0]["findings_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

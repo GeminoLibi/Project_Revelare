@@ -66,6 +66,9 @@ class TextFileProcessor(FileProcessor):
             self.logger.warning(f"Invalid text type for {file_name}")
             return findings
 
+        from revelare.core.mime_strip import mask_encoded_binary_regions
+        text = mask_encoded_binary_regions(text)
+
         max_text_size = getattr(Config, 'MAX_TEXT_SIZE_FOR_PROCESSING', 50 * 1024 * 1024)
         chunk_overlap = 1000
 
@@ -146,24 +149,51 @@ class TextFileProcessor(FileProcessor):
         if subject_names:
             findings.setdefault("Subject_Names", {}).update(subject_names)
 
+        from revelare.core.money_pathways import extract_money_pathways
+
+        pathway_findings = extract_money_pathways(
+            text,
+            file_name,
+            offset=offset,
+            segment_id=segment_id,
+            segment_anchor=segment_anchor,
+            multi_account_risk=multi_account_risk,
+            provider=provider,
+            file_path=file_path,
+        )
+        for category, items in pathway_findings.items():
+            findings.setdefault(category, {}).update(items)
+
+        from revelare.core.indicator_context import (
+            CRYPTO_CATEGORIES,
+            accept_crypto_match,
+            compiled_regex_patterns,
+            iter_email_spans,
+            iter_url_spans,
+        )
+
         if compiled_patterns is None:
-            if not hasattr(self, '_compiled_patterns_cache'):
-                self._compiled_patterns_cache = {}
-                for category, pattern in Config.REGEX_PATTERNS.items():
-                    try:
-                        self._compiled_patterns_cache[category] = re.compile(
-                            pattern, re.IGNORECASE | re.MULTILINE
-                        )
-                    except re.error as e:
-                        self.logger.error(f"Invalid regex pattern for {category}: {e}")
-            compiled_patterns = self._compiled_patterns_cache
-        
+            compiled_patterns = compiled_regex_patterns()
+
+        url_spans = iter_url_spans(text)
+        email_spans = iter_email_spans(text)
+
         for category, compiled_pattern in compiled_patterns.items():
             seen_indicators = set()
             try:
                 for match in compiled_pattern.finditer(text):
                     indicator = match.group(0).strip()
                     if not indicator or indicator in seen_indicators:
+                        continue
+                    if category in CRYPTO_CATEGORIES and not accept_crypto_match(
+                        category,
+                        indicator,
+                        text,
+                        match.start(),
+                        match.end(),
+                        url_spans=url_spans,
+                        email_spans=email_spans,
+                    ):
                         continue
                     seen_indicators.add(indicator)
                     

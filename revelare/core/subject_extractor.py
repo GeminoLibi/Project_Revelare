@@ -1,10 +1,17 @@
 """
-Extract person names only when tied to a subject role (account holder, warrant
-target, victim, etc.). Generic title-case names in body text are ignored.
+Extract person names from role-tied fields and plausible First Last in body text.
+
+Email headers (From:, Subject:, Dear ...) are skipped so they are not treated
+as warrant subjects. Standalone "Jane Doe" is kept without legal keywords.
 """
 import re
 from typing import Dict, List, Optional, Tuple
 
+from revelare.core.indicator_context import (
+    is_blocked_name_phrase,
+    iter_body_person_names,
+    should_skip_name_line,
+)
 from revelare.core.validators import DataValidator
 
 # (compiled_pattern, role, source_label)
@@ -16,13 +23,12 @@ _RAW_RULES = [
     (r"(?im)^(?:Given\s+Name|First\s+Name)\s*[:=]\s*(.+)$", "account_holder", "provider_return"),
     (r"(?im)^(?:Family\s+Name|Last\s+Name|Surname)\s*[:=]\s*(.+)$", "account_holder", "provider_return"),
     (r"(?im)^(?:Authorized\s+User(?:\s+Name)?|Additional\s+User)\s*[:=]\s*(.+)$", "account_holder", "provider_return"),
-    # Warrant / legal targeting language
-    (r"(?im)^(?:Subject|Target(?:\s+Name)?|Suspect(?:\s+Name)?)\s*[:=]\s*(.+)$", "warrant_subject", "warrant"),
+    # Warrant / legal targeting language. Bare "Subject:" is an email header, not used.
+    (r"(?im)^(?:Subject\s+Name|Target(?:\s+Name)?|Suspect(?:\s+Name)?|Defendant(?:\s+Name)?|Name\s+of\s+Subject)\s*[:=]\s*(.+)$", "warrant_subject", "warrant"),
+    (r"(?im)^(?:AKA|A\.K\.A\.?|Also\s+Known\s+As|D/?B/?A|Doing\s+Business\s+As)\s*[:=]\s*(.+)$", "warrant_subject", "alias"),
+    (r"(?im)^(?:Signed(?:\s+by)?|True\s+Name)\s*[:=]\s*(.+)$", "warrant_subject", "signature"),
     # Victims / complainants
-    (r"(?im)^(?:Victim(?:\s+Name)?|Complainant|Reporting\s+Party|Customer(?:\s+Name)?)\s*[:=]\s*(.+)$", "victim", "victim_record"),
-    # Email display names with angle-bracket address
-    (r"(?im)^(?:From|To|Cc|Bcc)\s*:\s*\"?([A-Za-z][A-Za-z\s\.\'-]{2,60})\"?\s*<[^>\s]+@[^>\s]+>", "email_party", "email_header"),
-    (r"(?im)^(?:From|To|Cc|Bcc)\s*:\s*([A-Za-z][A-Za-z\s\.\'-]{2,60})\s+<[^>\s]+@[^>\s]+>", "email_party", "email_header"),
+    (r"(?im)^(?:Victim(?:\s+Name)?|Complainant|Reporting\s+Party)\s*[:=]\s*(.+)$", "victim", "victim_record"),
 ]
 
 _EXCLUDE_LINE_PATTERNS = [
@@ -42,9 +48,11 @@ for raw_pattern, role, source in _RAW_RULES:
 def _clean_candidate(raw: str) -> Optional[str]:
     if not raw:
         return None
-    candidate = raw.strip().strip('"\'.,;')
+    candidate = raw.strip().strip("\"'.,;")
     candidate = re.sub(r"\s+", " ", candidate)
     if len(candidate) < 5:
+        return None
+    if is_blocked_name_phrase(candidate):
         return None
     for pattern in _EXCLUDE_LINE_PATTERNS:
         if pattern.search(candidate):
@@ -93,6 +101,13 @@ def extract_subject_names(
 
     for pattern, role, source in _SUBJECT_NAME_RULES:
         for match in pattern.finditer(text):
+            line_start = text.rfind("\n", 0, match.start()) + 1
+            line_end = text.find("\n", match.end())
+            if line_end < 0:
+                line_end = len(text)
+            line = text[line_start:line_end]
+            if should_skip_name_line(line):
+                continue
             candidate = _clean_candidate(match.group(1))
             if not candidate:
                 continue
@@ -123,5 +138,20 @@ def extract_subject_names(
                 multi_account_risk=multi_account_risk,
             )
             results[combined] = context
+
+    # Standalone First Last (no keyword required). Header/salutation lines skipped.
+    for candidate in iter_body_person_names(text):
+        if candidate in results:
+            continue
+        context = _build_context(
+            file_name=file_name,
+            role="mentioned",
+            source="body_name",
+            field="First Last",
+            segment_id=segment_id,
+            segment_anchor=segment_anchor,
+            multi_account_risk=multi_account_risk,
+        )
+        results[candidate] = context
 
     return results

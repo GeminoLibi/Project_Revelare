@@ -6,6 +6,7 @@ from typing import Dict, List, Any, Optional
 import glob
 
 from revelare.utils.logger import get_logger
+from revelare.core.money_pathways import LINK_ANALYSIS_CATEGORIES, PATHWAY_CATEGORIES
 
 logger = get_logger(__name__)
 
@@ -56,12 +57,14 @@ class LinkAnalysisService:
                 # Add Case Node
                 self.graph.add_node(case_name, type='case', label=case_name)
                 
-                # Add Indicator Nodes and Edges
-                # Focus on strong selectors: Email, Phone, IP (maybe), Hash
-                target_categories = ['Email_Addresses', 'Phone_Numbers', 'Bitcoin_Addresses', 'Credit_Card_Numbers', 'MD5_Hashes', 'Device_IDs_UUIDs']
-                
+                # Strong selectors plus nearby payment tokens. Brand/site
+                # pathway names (PayPal, Chase, DraftKings, ...) stay out.
                 for category, items in indicators.items():
-                    if category not in target_categories:
+                    if category in PATHWAY_CATEGORIES:
+                        continue
+                    if category not in LINK_ANALYSIS_CATEGORIES:
+                        continue
+                    if not isinstance(items, dict):
                         continue
                         
                     for indicator, context in items.items():

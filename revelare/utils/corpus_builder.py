@@ -41,6 +41,10 @@ DEFAULT_COLUMN_TYPES = [
     "MAC_Addresses",
     "Onion_Addresses",
     "IBAN",
+    "Financial_Institutions",
+    "Fintech_Apps",
+    "Gambling_Sites",
+    "Payment_Tokens",
 ]
 
 # Friendly column headers for wide exports
@@ -63,6 +67,10 @@ COLUMN_LABELS = {
     "MAC_Addresses": "mac_addresses",
     "Onion_Addresses": "onion_addresses",
     "IBAN": "iban",
+    "Financial_Institutions": "financial_institutions",
+    "Fintech_Apps": "fintech_apps",
+    "Gambling_Sites": "gambling_sites",
+    "Payment_Tokens": "payment_tokens",
     "User_Agents": "user_agents",
     "GPS_Coordinates": "gps_coordinates",
     "ISO_Timestamps": "timestamps",
@@ -109,7 +117,7 @@ def _has_case_content(path: str) -> bool:
 
 
 def _is_external_case_candidate(path: str, filenames: List[str]) -> bool:
-    if 'raw_findings.json' in filenames:
+    if 'raw_findings.json' in filenames or 'indicators.json' in filenames:
         return True
     name = os.path.basename(path)
     if not _looks_like_case_folder(name):

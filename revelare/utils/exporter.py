@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 from revelare.config.config import Config
+from revelare.core.findings_store import load_findings
 from revelare.utils.logger import get_logger
 from revelare.utils import reporter as reporter_utils
 
@@ -261,12 +262,9 @@ def _build_technical(findings: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def export_reader_package(project_name: str) -> str:
     project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
-    findings_file = os.path.join(project_path, 'raw_findings.json')
-    if not os.path.exists(findings_file):
+    findings = load_findings(project_path)
+    if findings is None:
         raise FileNotFoundError("Findings not found.")
-
-    with open(findings_file, 'r', encoding='utf-8') as f:
-        findings = json.load(f)
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     export_root = os.path.join(project_path, 'exports')

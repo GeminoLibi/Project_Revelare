@@ -8,6 +8,14 @@ from revelare.config.config import Config
 from revelare.utils.logger import get_logger, RevelareLogger
 from revelare.utils.security import SecurityValidator
 from revelare.core.extractor import run_extraction
+from revelare.core.findings_store import (
+    case_processing_complete,
+    count_findings,
+    load_findings,
+    report_html_path,
+    write_findings_artifacts,
+    write_report_html,
+)
 from revelare.utils import reporter
 import revelare.utils.file_extractor as file_extractor
 from revelare.utils.revelare_onboard import RevelareOnboard
@@ -112,9 +120,7 @@ class CaseManager:
                 update_master_database(project_name, findings)
 
                 write_ingest_manifest(project_path, ingest_records)
-
-                with open(os.path.join(project_path, 'raw_findings.json'), 'w', encoding='utf-8') as f:
-                    json.dump(findings, f, indent=4, ensure_ascii=False)
+                write_findings_artifacts(project_path, findings)
 
                 if callback:
                     callback("Generating report...")
@@ -122,9 +128,7 @@ class CaseManager:
                 report_generator = reporter.ReportGenerator()
                 enriched_ips = report_generator.enrich_ips(ip_addresses)
                 html_report = report_generator.generate_report(project_name, findings, enriched_ips)
-
-                with open(os.path.join(project_path, 'report.html'), 'w', encoding='utf-8') as f:
-                    f.write(html_report)
+                write_report_html(project_path, project_name, html_report)
 
                 # Export portable reader package
                 try:
@@ -157,25 +161,18 @@ class CaseManager:
         """
         try:
             project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
-            findings_file = os.path.join(project_path, 'raw_findings.json')
+            findings = load_findings(project_path)
             
-            if not os.path.exists(findings_file):
+            if findings is None:
                 return False, f"Findings not found for {project_name}. Process evidence first.", {}
             
-            with open(findings_file, 'r', encoding='utf-8') as f:
-                findings = json.load(f)
-            
-            import re
-            # Config is already imported at module level, don't re-import
-            
-            # Compile all regex patterns
-            compiled_patterns = {}
-            for category, pattern in Config.REGEX_PATTERNS.items():
-                try:
-                    compiled_patterns[category] = re.compile(pattern, re.IGNORECASE)
-                except re.error as e:
-                    case_logger.warning(f"Invalid regex pattern for {category}: {e}")
-                    continue
+            from revelare.core.indicator_context import (
+                CRYPTO_CATEGORIES,
+                compiled_regex_patterns,
+                is_strong_crypto,
+            )
+
+            compiled_patterns = compiled_regex_patterns()
             
             stats = {
                 'before': {},
@@ -237,31 +234,26 @@ class CaseManager:
                     continue
                 
                 for value, context in items.items():
-                    # Re-validate the value against the regex pattern
+                    keep = False
                     if pattern:
-                        # Check if the value matches the pattern exactly (full match)
                         full_match = pattern.fullmatch(value)
                         if full_match:
-                            # Value matches the pattern exactly, keep it
-                            cleaned_items[value] = context
+                            keep = True
                         else:
-                            # Check if there's a partial match (value contains the pattern)
                             partial_match = pattern.search(value)
-                            if partial_match:
-                                matched_value = partial_match.group(0)
-                                # Only keep if the matched portion is at least 80% of the value
-                                # This handles cases where there might be minor prefix/suffix
-                                if len(matched_value) >= len(value) * 0.8:
-                                    cleaned_items[value] = context
-                                else:
-                                    # The match is too small compared to the value - likely a false positive
-                                    removed_count += 1
-                            else:
-                                # No match at all - remove it
-                                removed_count += 1
+                            if partial_match and len(partial_match.group(0)) >= len(value) * 0.8:
+                                keep = True
                     else:
-                        # No pattern available, keep the item
+                        keep = True
+
+                    # Saved crypto hits have no surrounding text: keep only strong forms.
+                    if keep and category in CRYPTO_CATEGORIES and not is_strong_crypto(category, value):
+                        keep = False
+
+                    if keep:
                         cleaned_items[value] = context
+                    else:
+                        removed_count += 1
                 
                 cleaned_findings[category] = cleaned_items
                 stats['after'][category] = len(cleaned_items)
@@ -272,9 +264,7 @@ class CaseManager:
                 if len(items) > 1000:
                     case_logger.info(f"  Completed {category}: {len(cleaned_items)} kept, {removed_count} removed")
             
-            # Save cleaned findings
-            with open(findings_file, 'w', encoding='utf-8') as f:
-                json.dump(cleaned_findings, f, indent=4, ensure_ascii=False)
+            write_findings_artifacts(project_path, cleaned_findings)
             
             # Regenerate report with cleaned findings
             try:
@@ -282,9 +272,7 @@ class CaseManager:
                 report_generator = reporter.ReportGenerator()
                 enriched_ips = report_generator.enrich_ips(ip_addresses)
                 html_report = report_generator.generate_report(project_name, cleaned_findings, enriched_ips)
-                
-                with open(os.path.join(project_path, 'report.html'), 'w', encoding='utf-8') as f:
-                    f.write(html_report)
+                write_report_html(project_path, project_name, html_report)
             except Exception as e:
                 case_logger.warning(f"Failed to regenerate report: {e}")
             
@@ -303,9 +291,7 @@ class CaseManager:
         """
         try:
             project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
-            findings_file = os.path.join(project_path, 'raw_findings.json')
-            
-            if not os.path.exists(findings_file):
+            if load_findings(project_path) is None:
                 return False, f"Findings not found for {project_name}. Process evidence first.", None
             
             from revelare.utils.exporter import export_reader_package
@@ -429,18 +415,13 @@ class CaseManager:
                 for item in os.listdir(cases_dir):
                     case_path = os.path.join(cases_dir, item)
                     if os.path.isdir(case_path):
-                        has_report = os.path.exists(os.path.join(case_path, 'report.html'))
-                        findings_file = os.path.join(case_path, 'raw_findings.json')
+                        has_report = report_html_path(case_path, item) is not None
                         findings_count = 0
-                        if os.path.exists(findings_file):
-                            try:
-                                with open(findings_file, 'r', encoding='utf-8') as f:
-                                    data = json.load(f)
-                                    for category, items in data.items():
-                                        if category != 'Processing_Summary' and isinstance(items, dict):
-                                            findings_count += len(items)
-                            except:
-                                pass
+                        try:
+                            findings_count = count_findings(load_findings(case_path))
+                        except Exception:
+                            pass
+                        is_complete = case_processing_complete(case_path, item) or findings_count > 0
                         
                         email_archives = []
                         try:
@@ -454,6 +435,7 @@ class CaseManager:
                         
                         cases.append({
                             "name": item, "path": case_path, "has_report": has_report,
+                            "is_complete": is_complete,
                             "findings_count": findings_count, "email_archives": email_archives,
                             "email_archive_count": len(email_archives),
                             "created": datetime.fromtimestamp(os.path.getctime(case_path)).isoformat()

@@ -129,6 +129,7 @@ class DataValidator:
         'street', 'road', 'avenue', 'drive', 'lane', 'boulevard', 'place', 'way',
         'circle', 'parkway', 'highway', 'route', 'box', 'suite', 'floor', 'building',
         'apartment', 'apt',
+        'dear', 'sir', 'madam',
     }
 
     @staticmethod
@@ -160,9 +161,15 @@ class DataValidator:
                 continue
             if len(cleaned) < 2:
                 return False
-            if not re.match(r"^[A-Z][a-z']*$", part):
+            token_ok = bool(
+                re.match(r"^[A-Z][a-z']+$", part)
+                or re.match(r"^[A-Z][a-z]+-[A-Z][a-z]+$", part)
+                or re.match(r"^[A-Z][a-z]*'[A-Z][a-z]+$", part)
+            )
+            if not token_ok:
                 return False
-            if cleaned.lower() in stopwords:
+            token_key = cleaned.replace("-", " ").replace("'", "").lower()
+            if cleaned.lower() in stopwords or token_key in stopwords:
                 return False
 
         joined_lower = name.lower()

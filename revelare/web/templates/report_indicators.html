@@ -71,6 +71,7 @@
                 { key: 'value', label: 'Value' },
                 { key: 'details', label: 'Details' },
                 { key: 'file', label: 'File' },
+                { key: 'source_path', label: 'Source Path' },
                 { key: 'position', label: 'Position' }
             ],
             filterFunction: (item, filters) => {
@@ -78,7 +79,8 @@
                 return (!filters.category || item.category === filters.category) &&
                        (!filters.file || item.file === filters.file) &&
                        (!searchLower || 
-                        (item.value && item.value.toLowerCase().includes(searchLower)));
+                        (item.value && item.value.toLowerCase().includes(searchLower)) ||
+                        (item.source_path && item.source_path.toLowerCase().includes(searchLower)));
             },
             renderRow: (indicator) => `
                 <tr>
@@ -86,6 +88,7 @@
                     <td><span class="indicator-value">${indicator.value}</span></td>
                     <td><span class="details">${indicator.details}</span></td>
                     <td><span class="file-source">${indicator.file}</span></td>
+                    <td><span class="file-source">${indicator.source_path || ''}</span></td>
                     <td>${indicator.position}</td>
                 </tr>
             `

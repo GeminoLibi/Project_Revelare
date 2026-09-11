@@ -123,7 +123,7 @@ class EnhancedCLI:
             return
             
         for i, case in enumerate(cases, 1):
-            status = "✓ Completed" if case.get('has_report') else "⏳ Processing"
+            status = "Completed" if (case.get('is_complete') or case.get('has_report')) else "Processing"
             findings = case.get('findings_count', 0)
             print(f"  [{i:2d}] {case['name']}")
             print(f"       Status: {status}")
@@ -197,7 +197,7 @@ class EnhancedCLI:
         print("=" * 50)
         
         # Basic info
-        print(f"  Status: {'✓ Completed' if case.get('has_report') else '⏳ Processing'}")
+        print(f"  Status: {'Completed' if (case.get('is_complete') or case.get('has_report')) else 'Processing'}")
         print(f"  Findings: {case.get('findings_count', 0)}")
         print(f"  Email Archives: {case.get('email_archive_count', 0)}")
         

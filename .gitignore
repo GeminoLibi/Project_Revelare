@@ -50,6 +50,8 @@ revelare_master.db
 # Case data, evidence, exports, uploads, PII (NEVER commit)
 cases/
 **/cases/
+smoke_e_cases/
+**/smoke_e_cases/
 evidence/
 **/evidence/
 extracted_files/

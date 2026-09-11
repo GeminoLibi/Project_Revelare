@@ -20,7 +20,13 @@ from revelare.utils.logger import get_logger, RevelareLogger
 from revelare.utils.security import SecurityValidator, InputValidator
 from revelare.core.case_manager import case_manager
 from revelare.core.database import get_db_connection, init_database, update_master_database
+from revelare.core.money_pathways import link_analysis_sql_filter
 from revelare.core.extractor import run_extraction
+from revelare.core.findings_store import (
+    count_findings,
+    load_findings,
+    parse_indicator_context,
+)
 from revelare.utils import reporter
 import revelare.utils.file_extractor as file_extractor
 
@@ -102,11 +108,12 @@ def home():
     db_projects = []
 
     for case in available_cases:
+        is_done = case.get('is_complete') or case.get('has_report') or case.get('findings_count', 0) > 0
         db_projects.append({
             'name': case['name'],
-            'status': 'completed' if case.get('has_report') else 'processing',
+            'status': 'completed' if is_done else 'processing',
             'findings': case.get('findings_count', 0),
-            'report_exists': case.get('has_report', False)
+            'report_exists': is_done
         })
 
     return render_template('dashboard.html', projects=db_projects)
@@ -128,10 +135,12 @@ def link_analysis():
             if search_term:
                 conn = get_db_connection()
                 cursor = conn.cursor()
+                type_clause, type_params = link_analysis_sql_filter()
 
                 cursor.execute(
-                    "SELECT DISTINCT project_name FROM indicators WHERE indicator_value = ?",
-                    (search_term,)
+                    "SELECT DISTINCT project_name FROM indicators "
+                    "WHERE indicator_value = ? AND %s" % type_clause,
+                    [search_term] + type_params
                 )
                 direct_links = sorted([row[0] for row in cursor.fetchall()])
 
@@ -139,8 +148,9 @@ def link_analysis():
                 if direct_links:
                     placeholders = ', '.join('?' for _ in direct_links)
                     cursor.execute(
-                        f"SELECT project_name, indicator_value FROM indicators WHERE project_name IN ({placeholders})",
-                        direct_links
+                        "SELECT project_name, indicator_value FROM indicators "
+                        "WHERE project_name IN (%s) AND %s" % (placeholders, type_clause),
+                        list(direct_links) + type_params
                     )
                     for case, indicator in cursor.fetchall():
                         if indicator != search_term:
@@ -154,12 +164,13 @@ def link_analysis():
                     direct_link_placeholders = ', '.join('?' for _ in direct_links)
                     
                     cursor.execute(
-                        f"""
+                        """
                         SELECT DISTINCT project_name, indicator_value FROM indicators
-                        WHERE indicator_value IN ({placeholders})
-                        AND project_name NOT IN ({direct_link_placeholders})
-                        """,
-                        list(all_shared_indicators) + direct_links
+                        WHERE indicator_value IN (%s)
+                        AND project_name NOT IN (%s)
+                        AND %s
+                        """ % (placeholders, direct_link_placeholders, type_clause),
+                        list(all_shared_indicators) + list(direct_links) + type_params
                     )
                     
                     secondary_matches = cursor.fetchall()
@@ -643,19 +654,36 @@ def shutdown():
         shutdown_func()
         return "Server is shutting down..."
 
+def _sync_findings_db(project_name, findings):
+    """Load CLI-produced findings into SQLite if the case is missing or still processing."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT status, total_findings FROM projects WHERE project_name=?",
+            (project_name,),
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0] == "completed" and (row[1] or 0) > 0:
+            return
+        update_master_database(project_name, findings)
+    except Exception as exc:
+        logger.warning("Could not sync findings DB for %s: %s", project_name, exc)
+
+
 def get_report_data(project_name):
     project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
     if not os.path.isdir(project_path):
         abort(404)
     
-    findings_file = os.path.join(project_path, 'raw_findings.json')
-    if not os.path.exists(findings_file):
+    findings = load_findings(project_path)
+    if findings is None:
         return {"error": "Findings file not found."}
 
-    with open(findings_file, 'r', encoding='utf-8') as f:
-        findings = json.load(f)
+    _sync_findings_db(project_name, findings)
 
-    total_indicators = sum(len(v) for k, v in findings.items() if k != 'Processing_Summary' and isinstance(v, dict))
+    total_indicators = count_findings(findings)
     files_processed = findings.get("Processing_Summary", {}).get("Total_Files_Processed", 0)
     
     category_counts = {k: len(v) for k, v in findings.items() if k != 'Processing_Summary' and isinstance(v, dict)}
@@ -670,11 +698,9 @@ def get_report_data(project_name):
             for value, context in items.items():
                 if count >= 10:
                     break
-                file_source = "Unknown"
-                if 'File:' in context:
-                    file_source = context.split('File:')[1].split('|')[0].strip()
+                parsed = parse_indicator_context(context)
                 recent_indicators.append({
-                    'category': category, 'value': value, 'file_source': file_source
+                    'category': category, 'value': value, 'file_source': parsed['file']
                 })
                 count += 1
         if count >= 10:
@@ -825,12 +851,10 @@ def ai_assistant():
         
         # Load case data for context
         project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
-        findings_file = os.path.join(project_path, 'raw_findings.json')
+        findings = load_findings(project_path)
         
         case_summary = {}
-        if os.path.exists(findings_file):
-            with open(findings_file, 'r', encoding='utf-8') as f:
-                findings = json.load(f)
+        if findings is not None:
                 
             # Create summary for AI context
             case_summary = {
@@ -1201,12 +1225,10 @@ def download_case_export(case_name, filename):
 @app.route('/api/report/<project_name>/<data_type>')
 def api_report_data(project_name, data_type):
     project_path = os.path.join(Config.UPLOAD_FOLDER, project_name)
-    findings_file = os.path.join(project_path, 'raw_findings.json')
-    if not os.path.exists(findings_file):
+    findings = load_findings(project_path)
+    if findings is None:
         return jsonify({"success": False, "error": "Findings not found."})
-
-    with open(findings_file, 'r', encoding='utf-8') as f:
-        findings = json.load(f)
+    _sync_findings_db(project_name, findings)
         
     data = []
     if data_type == 'indicators':
@@ -1218,34 +1240,26 @@ def api_report_data(project_name, data_type):
                 for domain, urls in items.items():
                     if isinstance(urls, dict):
                         for url, context in urls.items():
-                            file_source, position = "Unknown", "N/A"
-                            context_str = str(context)
-                            if 'File:' in context_str: file_source = context_str.split('File:')[1].split('|')[0].strip()
-                            if 'Position:' in context_str: position = context_str.split('Position:')[1].split('|')[0].strip()
-                            
+                            parsed = parse_indicator_context(context)
                             data.append({
-                                'category': category, 'value': url, 'details': context_str, 'file': file_source, 'position': position
+                                'category': category, 'value': url, 'details': parsed['details'],
+                                'file': parsed['file'], 'position': parsed['position'],
+                                'source_path': parsed['source_path'], 'source_hash': parsed['source_hash']
                             })
                     else:
-                        # Fallback for non-dict values
-                        file_source, position = "Unknown", "N/A"
-                        context_str = str(urls)
-                        if 'File:' in context_str: file_source = context_str.split('File:')[1].split('|')[0].strip()
-                        if 'Position:' in context_str: position = context_str.split('Position:')[1].split('|')[0].strip()
-                        
+                        parsed = parse_indicator_context(urls)
                         data.append({
-                            'category': category, 'value': domain, 'details': context_str, 'file': file_source, 'position': position
+                            'category': category, 'value': domain, 'details': parsed['details'],
+                            'file': parsed['file'], 'position': parsed['position'],
+                            'source_path': parsed['source_path'], 'source_hash': parsed['source_hash']
                         })
             else:
-                # Handle regular categories
                 for value, context in items.items():
-                    file_source, position = "Unknown", "N/A"
-                    context_str = str(context)
-                    if 'File:' in context_str: file_source = context_str.split('File:')[1].split('|')[0].strip()
-                    if 'Position:' in context_str: position = context_str.split('Position:')[1].split('|')[0].strip()
-
+                    parsed = parse_indicator_context(context)
                     data.append({
-                        'category': category, 'value': value, 'details': context_str, 'file': file_source, 'position': position
+                        'category': category, 'value': value, 'details': parsed['details'],
+                        'file': parsed['file'], 'position': parsed['position'],
+                        'source_path': parsed['source_path'], 'source_hash': parsed['source_hash']
                     })
     elif data_type == 'geographic':
         try:

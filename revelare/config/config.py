@@ -99,12 +99,32 @@ class Config:
         'Credit_Card_Numbers': r'\b(?:\d{4}[-\s]?){3}\d{4}\b|\b3[47][0-9]{13}\b',
         
         # --- Cryptocurrency ---
-        # Bitcoin - Added SegWit (bc1) support
-        'Bitcoin_Addresses': r'\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b',
-        # Ethereum
-        'Ethereum_Addresses': r'\b0x[a-fA-F0-9]{40}\b(?![\da-fA-F])',
+        # Tightened so path/query chars cannot start a match (avoids slicing URLs
+        # into 26-40 char Base58-looking chunks). Strong forms (bc1, 0x+40 hex,
+        # Base58Check) are kept without nearby keywords; see indicator_context.
+        # Lookbehind/ahead are one character (Python fixed-width).
+        'Bitcoin_Addresses': (
+            r'(?<![A-Za-z0-9_/#?&=%.~+\-])'
+            r'(?:'
+            r'[13][1-9A-HJ-NP-Za-km-z]{25,34}'
+            r'|'
+            r'bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,71}'
+            r'|'
+            r'BC1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{38,71}'
+            r')'
+            r'(?![A-Za-z0-9_/#?&=%.~+\-])'
+        ),
+        'Ethereum_Addresses': (
+            r'(?<![A-Za-z0-9_/#?&=%.~+\-])'
+            r'0[xX][a-fA-F0-9]{40}'
+            r'(?![a-fA-F0-9])'
+        ),
         # Monero - Critical for dark web investigations
-        'Monero_Addresses': r'\b4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}\b',
+        'Monero_Addresses': (
+            r'(?<![A-Za-z0-9_/#?&=%.~+\-])'
+            r'4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}'
+            r'(?![A-Za-z0-9_/#?&=%.~+\-])'
+        ),
         # IBAN - International Bank Account Number (crucial for wire fraud)
         'IBAN': r'\b[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{4}[0-9]{7}([a-zA-Z0-9]?){0,16}\b',
         

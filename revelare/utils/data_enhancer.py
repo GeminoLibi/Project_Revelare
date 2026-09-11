@@ -59,7 +59,13 @@ class DataEnhancer:
                     logger.debug(f"Filtered out irrelevant {category}: {value}")
                     return True
 
-        if len(value) < 5 and category not in ['IPv4']:
+        if len(value) < 5 and category not in [
+            'IPv4',
+            'Payment_Tokens',
+            'Financial_Institutions',
+            'Fintech_Apps',
+            'Gambling_Sites',
+        ]:
              return True
 
         if value.lower() in ['null', 'none', 'undefined', 'n/a']:

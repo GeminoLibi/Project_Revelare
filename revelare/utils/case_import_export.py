@@ -21,14 +21,13 @@ logger = get_logger(__name__)
 # Export format version for compatibility checking
 EXPORT_FORMAT_VERSION = "1.0"
 
-# Required files for a valid case export
-REQUIRED_CASE_FILES = [
-    'case_metadata.json',
-    'raw_findings.json'
-]
+# Required files for a valid case export (findings JSON is checked separately)
+REQUIRED_CASE_FILES = []
 
 # Optional files that may be included
 OPTIONAL_CASE_FILES = [
+    'case_metadata.json',
+    'raw_findings.json',
     'report.html',
     'indicators.json',
     'indicators.csv',
@@ -63,14 +62,9 @@ class CaseExporter:
             if not os.path.exists(case_path):
                 return False, f"Case '{case_name}' not found", None
             
-            # Validate required files exist
-            missing_files = []
-            for req_file in REQUIRED_CASE_FILES:
-                if not os.path.exists(os.path.join(case_path, req_file)):
-                    missing_files.append(req_file)
-            
-            if missing_files:
-                return False, f"Missing required files: {', '.join(missing_files)}", None
+            from revelare.core.findings_store import load_findings
+            if load_findings(case_path) is None:
+                return False, "Missing findings JSON (raw_findings.json or indicators.json)", None
             
             # Create export manifest
             manifest = self._create_export_manifest(case_name, case_path, include_files, include_extracted)
@@ -185,15 +179,12 @@ class CaseExporter:
                     manifest['files']['extracted_count'] = len([f for f in extracted_files if f.is_file()])
         
         # Count indicators
-        findings_path = os.path.join(case_path, 'raw_findings.json')
-        if os.path.exists(findings_path):
-            with open(findings_path, 'r', encoding='utf-8') as f:
-                findings = json.load(f)
-                total_indicators = sum(len(v) for k, v in findings.items() 
-                                     if k != 'Processing_Summary' and isinstance(v, dict))
-                manifest['indicators_count'] = total_indicators
-                manifest['categories'] = [k for k in findings.keys() 
-                                        if k != 'Processing_Summary' and isinstance(findings[k], dict)]
+        from revelare.core.findings_store import count_findings, load_findings
+        findings = load_findings(case_path)
+        if findings is not None:
+            manifest['indicators_count'] = count_findings(findings)
+            manifest['categories'] = [k for k in findings.keys()
+                                     if k != 'Processing_Summary' and isinstance(findings[k], dict)]
         
         return manifest
     

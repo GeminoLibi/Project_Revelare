@@ -286,20 +286,28 @@ class GlobalReporter:
                 smooth: {{ type: 'continuous' }}
             }},
             physics: {{
-                stabilization: false,
+                enabled: true,
+                stabilization: {{ enabled: true, iterations: 200, fit: true }},
                 barnesHut: {{
                     gravitationalConstant: -2000,
                     springConstant: 0.04,
-                    springLength: 95
+                    springLength: 95,
+                    damping: 0.9
                 }}
             }},
             interaction: {{
                 tooltipDelay: 200,
-                hideEdgesOnDrag: true
+                hideEdgesOnDrag: true,
+                dragNodes: true,
+                dragView: true,
+                zoomView: true
             }}
         }};
         
         var network = new vis.Network(container, data, options);
+        network.once("stabilizationIterationsDone", function () {{
+            network.setOptions({{ physics: false }});
+        }});
         
         network.on("click", function (params) {{
             if (params.nodes.length > 0) {{

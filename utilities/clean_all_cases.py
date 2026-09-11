@@ -42,10 +42,9 @@ def clean_all_cases():
     
     for case_entry in sorted(case_dirs):
         project_name = case_entry.name
-        raw_findings_path = case_entry / 'raw_findings.json'
-        
-        if not raw_findings_path.exists():
-            logger.warning(f"Skipping {project_name}: raw_findings.json not found. Case might not have been processed yet.")
+        from revelare.core.findings_store import load_findings
+        if load_findings(str(case_entry)) is None:
+            logger.warning(f"Skipping {project_name}: findings JSON not found. Case might not have been processed yet.")
             continue
         
         logger.info(f"[{cleaned_count+1}/{len(case_dirs)}] Cleaning Case: {project_name}")

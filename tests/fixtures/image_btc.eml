@@ -1,0 +1,23 @@
+MIME-Version: 1.0
+From: sender@example.com
+To: analyst@example.gov
+Subject: Payment instructions
+Content-Type: multipart/related; boundary="----=_Part_7_IMG"
+
+------=_Part_7_IMG
+Content-Type: text/plain; charset="utf-8"
+
+Please use this wallet: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+Also interview Jane Doe tomorrow.
+
+------=_Part_7_IMG
+Content-Type: image/jpeg; name="photo.jpg"
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="photo.jpg"
+Content-ID: <photo.jpg@example.com>
+
+/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB
+1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2
+1xxxxxxxxxxxxxxxxxxxxxxxxxQQQQQQQQQQQQQQQQQQ
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMAAQAABQABDQottA
+------=_Part_7_IMG--

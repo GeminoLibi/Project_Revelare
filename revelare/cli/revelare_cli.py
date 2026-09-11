@@ -2,7 +2,6 @@ import os
 import sys
 import argparse
 import json
-import csv
 import re
 import logging
 from typing import Dict, List, Tuple, Any
@@ -53,25 +52,11 @@ def validate_input_files(file_paths: List[str]) -> Tuple[List[str], int]:
     return valid_files, total_size
 
 def _export_results(project_dir: str, findings: Dict, project_name: str):
-    from revelare.core.source_ingest import parse_source_fields
-    enhanced_findings = {k: v for k, v in findings.items() if k != 'Processing_Summary' and isinstance(v, dict)}
-         
-    json_path = os.path.join(project_dir, "indicators.json")
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(enhanced_findings, f, indent=2, ensure_ascii=False)
-    print(f"[OK] JSON export saved: {os.path.basename(json_path)}")
-    
-    csv_path = os.path.join(project_dir, "indicators.csv")
-    with open(csv_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(['Category', 'Indicator', 'SourcePath', 'SourceHash', 'Context'])
-        for category, items in enhanced_findings.items():
-            if items:
-                for indicator, context in items.items():
-                    source_path, source_hash = parse_source_fields(context)
-                    safe_context = str(context).replace('\n', ' ')[:250] 
-                    writer.writerow([category, indicator, source_path, source_hash, safe_context])
-    print(f"[OK] CSV export saved: {os.path.basename(csv_path)}")
+    from revelare.core.findings_store import write_findings_artifacts
+    write_findings_artifacts(project_dir, findings)
+    print("[OK] JSON export saved: indicators.json")
+    print("[OK] Findings snapshot saved: raw_findings.json")
+    print("[OK] CSV export saved: indicators.csv")
 
 def process_project(project_name: str, input_files: List[str], output_dir: str, args) -> bool:
     is_name_valid, error_msg = SecurityValidator.validate_project_name(project_name)
@@ -126,13 +111,14 @@ def process_project(project_name: str, input_files: List[str], output_dir: str, 
         ip_addresses = [v for k in findings if 'IPv4' in k for v in findings[k].keys()]
         enriched_ips = report_generator.enrich_ips(ip_addresses)
         
-        report_path = os.path.join(project_dir, f"{project_name}_report.html")
+        from revelare.core.findings_store import write_report_html
+        from revelare.core.database import update_master_database
         report_html = report_generator.generate_report(project_name, findings, enriched_ips)
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(report_html)
-        print(f"[OK] Report generated: {os.path.basename(report_path)}")
+        write_report_html(project_dir, project_name, report_html)
+        print("[OK] Report generated: report.html")
         
         _export_results(project_dir, findings, project_name)
+        update_master_database(project_name, findings)
         
         print(f"\n[SUCCESS] Project '{project_name}' completed successfully!")
         print(f"[INFO] Outputs saved to: {project_dir}")
